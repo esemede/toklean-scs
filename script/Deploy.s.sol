@@ -28,7 +28,9 @@ contract Deploy is Script {
     {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(pk);
-        address admin = vm.envAddress("ADMIN_ADDRESS");
+        // En testnet se puede omitir ADMIN_ADDRESS: el deployer queda como admin para asignar roles de prueba.
+        address admin = vm.envOr("ADMIN_ADDRESS", deployer);
+        uint256 startBlock = block.number;
         string memory imageBase = vm.envOr("IMAGE_BASE_URI", string("ipfs://"));
 
         vm.startBroadcast(pk);
@@ -62,11 +64,35 @@ contract Deploy is Script {
 
         vm.stopBroadcast();
 
+        _writeDeployment(trees, ideas, batches, products, cleanups, admin, startBlock);
+
         console2.log("TreeNFT            ", address(trees));
         console2.log("RecyclingIdeaNFT   ", address(ideas));
         console2.log("RecyclingBatchNFT  ", address(batches));
         console2.log("CircularProductNFT ", address(products));
         console2.log("CleanupActionNFT   ", address(cleanups));
+    }
+
+    /// @dev deployments/<chainId>.json lo consume el front (direcciones + bloque inicial para leer eventos).
+    function _writeDeployment(
+        TreeNFT trees,
+        RecyclingIdeaNFT ideas,
+        RecyclingBatchNFT batches,
+        CircularProductNFT products,
+        CleanupActionNFT cleanups,
+        address admin,
+        uint256 startBlock
+    ) internal {
+        string memory k = "deployment";
+        vm.serializeUint(k, "chainId", block.chainid);
+        vm.serializeUint(k, "startBlock", startBlock);
+        vm.serializeAddress(k, "admin", admin);
+        vm.serializeAddress(k, "TreeNFT", address(trees));
+        vm.serializeAddress(k, "RecyclingIdeaNFT", address(ideas));
+        vm.serializeAddress(k, "RecyclingBatchNFT", address(batches));
+        vm.serializeAddress(k, "CircularProductNFT", address(products));
+        string memory json = vm.serializeAddress(k, "CleanupActionNFT", address(cleanups));
+        vm.writeJson(json, string.concat("deployments/", vm.toString(block.chainid), ".json"));
     }
 
     function _handOver(address target, address admin, address deployer) internal {

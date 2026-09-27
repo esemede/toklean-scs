@@ -63,6 +63,28 @@ forge test -vvv
 forge fmt --check
 ```
 
+## Pruebas en testnet (Polygon Amoy, chainId 80002)
+
+1. **Fondos**: el despliegue completo consume ~17,2 M gas (≈0,5 POL a 30 gwei) y `SetupTestnet` ~1,2 M gas.
+   Junta ~0,7 POL de prueba con varios faucets:
+   [Alchemy](https://www.alchemy.com/faucets/polygon-amoy) (0,1/día),
+   [QuickNode](https://faucet.quicknode.com/polygon/amoy),
+   [Chainlink](https://faucets.chain.link/polygon-amoy),
+   [GetBlock](https://getblock.io/faucet/matic-amoy/),
+   [ETHGlobal](https://ethglobal.com/faucet/polygon-amoy-80002).
+   Algunos exigen saldo/actividad mínima en Ethereum mainnet con la wallet que reclama; puedes reclamar con
+   tu wallet personal y transferir a la de despliegue.
+2. **Desplegar** (sin `ADMIN_ADDRESS`, el deployer queda como admin para asignar roles de prueba):
+   ```sh
+   cp .env.example .env   # PRIVATE_KEY, AMOY_RPC_URL, TESTERS
+   make balance           # confirma POL
+   make deploy-amoy       # escribe deployments/80002.json
+   make setup-amoy        # da todos los roles a TESTERS (usa ≥2 wallets: nadie se auto-verifica)
+   make abis              # regenera ABIs en ../toklean-front/src/abi/impact
+   cp deployments/80002.json ../toklean-front/src/config/deployments/
+   ```
+3. **Sin faucet**: `make anvil` + `make deploy-local` levanta todo en un nodo local con cuentas con fondos.
+
 ## Despliegue
 
 ```sh
