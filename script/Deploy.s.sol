@@ -15,6 +15,7 @@ import {IRecyclingBatch} from "../src/interfaces/IRecyclingBatch.sol";
 ///      (Safe multisig / Timelock de gobernanza) y renuncia a él.
 ///
 ///      forge script script/Deploy.s.sol --rpc-url amoy --broadcast --verify
+///      (Sepolia: --rpc-url sepolia)
 contract Deploy is Script {
     function run()
         external

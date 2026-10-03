@@ -24,8 +24,10 @@ bracket_spacing = false
 [rpc_endpoints]
 polygon = "${POLYGON_RPC_URL}"
 amoy = "${AMOY_RPC_URL}"
+sepolia = "${SEPOLIA_RPC_URL}"
 local = "http://127.0.0.1:8545"
 
 [etherscan]
 polygon = { key = "${POLYGONSCAN_API_KEY}", chain = 137 }
 amoy = { key = "${POLYGONSCAN_API_KEY}", chain = 80002 }
+sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 11155111 }

@@ -63,6 +63,19 @@ forge test -vvv
 forge fmt --check
 ```
 
+## Pruebas en testnet (Ethereum Sepolia, chainId 11155111)
+
+Alternativa a Amoy cuando los faucets de Polygon exigen actividad en mainnet: los faucets de Sepolia
+(p.ej. [PoW faucet](https://sepolia-faucet.pk910.de/)) no piden saldo previo.
+
+```bash
+cp .env.example .env   # PRIVATE_KEY, SEPOLIA_RPC_URL, TESTERS
+make deploy-sepolia    # escribe deployments/11155111.json
+make setup-sepolia
+```
+
+Luego copia `deployments/11155111.json` a `toklean-front/src/config/deployments/` y usa `VITE_PUBLIC_CHAIN_ID=11155111`.
+
 ## Pruebas en testnet (Polygon Amoy, chainId 80002)
 
 1. **Fondos**: el despliegue completo consume ~17,2 M gas (≈0,5 POL a 30 gwei) y `SetupTestnet` ~1,2 M gas.

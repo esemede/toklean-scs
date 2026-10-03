@@ -13,7 +13,7 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 ///      TESTERS=0xabc...,0xdef... forge script script/SetupTestnet.s.sol --rpc-url amoy --broadcast
 contract SetupTestnet is Script {
     function run() external {
-        require(block.chainid != 137, "SetupTestnet: no usar en mainnet");
+        require(block.chainid != 137 && block.chainid != 1, "SetupTestnet: no usar en mainnet");
         uint256 pk = vm.envUint("PRIVATE_KEY");
         address[] memory testers = vm.envAddress("TESTERS", ",");
 
