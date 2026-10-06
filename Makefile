@@ -34,8 +34,10 @@ setup-sepolia:
 deploy-economy-local:
 	forge script script/DeployEconomy.s.sol --rpc-url local --broadcast
 
+# Sepolia cobra hoy ~7x más gas por crear contratos que lo que simulan forge/anvil (token: 14,4M vs 2,06M),
+# por eso el multiplicador de gas. El gas no usado se devuelve; el tope por transacción es 16,7M (EIP-7825).
 deploy-economy-sepolia:
-	forge script script/DeployEconomy.s.sol --rpc-url sepolia --broadcast $(if $(ETHERSCAN_API_KEY),--verify,)
+	forge script script/DeployEconomy.s.sol --rpc-url sepolia --broadcast --gas-estimate-multiplier 800 $(if $(ETHERSCAN_API_KEY),--verify,)
 
 balance:
 	cast balance --ether $$(cast wallet address $(PRIVATE_KEY)) --rpc-url $(AMOY_RPC_URL)

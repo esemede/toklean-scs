@@ -32,6 +32,8 @@ make deploy-economy-local      # anvil
 make deploy-economy-sepolia    # agrega las direcciones a deployments/<chainId>.json
 ```
 
+> **Gas en Sepolia:** la red cobra hoy ~7 veces más gas por crear contratos que lo que simulan `forge` y `anvil` (el token necesita 14,4 M de gas y se estima en 2,06 M). Sin ajuste, los `CREATE` se quedan sin gas y las llamadas posteriores «pasan» contra direcciones vacías. `make deploy-economy-sepolia` usa `--gas-estimate-multiplier 800`; antes de desplegar en otra red compara `cast rpc eth_estimateGas` con la simulación. El tope por transacción es 16,7 M (EIP‑7825).
+
 Variables opcionales de `DeployEconomy`: `ADMIN_ADDRESS` (obligatoria en mainnet), `COMPLIANCE_ADDRESS`, `GUARDIAN_ADDRESS`, `TKN_CAP`, `STAKING_APR_BPS`, `VOTING_DELAY`, `VOTING_PERIOD`, `TIMELOCK_DELAY`, `QUORUM_BPS`, `PROPOSAL_THRESHOLD`, `DEPLOY_FAUCET`.
 
 ## Flujo circular
