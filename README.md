@@ -12,6 +12,28 @@ Suite de NFTs para **verificar y trazar acciones de limpieza y mejora ambiental*
 
 Todos heredan de `ImpactNFTBase`: `AccessControl`, pausa de emergencia, metadata 100 % on‑chain (JSON base64, entradas de usuario escapadas) y evidencias como `hash + URI` (IPFS/Arweave).
 
+## Economía: token ERC‑1155, staking y DAO
+
+| Contrato | Qué hace |
+| --- | --- |
+| `ToKleanToken` (ERC‑1155) | Un solo contrato, un id por token (18 decimales): **TKN** (id 1, utilidad y gobernanza, con tope), **REC** (id 2, recompensa quemable, sin tope) y **POR** (id 3, Prueba de Reciclaje). Roles `MINTER`/`PAUSER`, metadata on‑chain. |
+| `ToKleanStaking` | Stake de TKN que rinde REC a un APR lineal (12,5 % inicial, tope 50 %). El cambio de APR no es retroactivo. `unstake` siempre disponible, incluso en pausa. Guarda historial por instante para votar sobre un snapshot. |
+| `ToKleanGovernance` | DAO: voto con el TKN en stake **un segundo antes** de crearse la propuesta (resiste flash‑stake), quórum, timelock, aprobación del comité de compliance para propuestas de **centros** y **fondos**, y pausa de emergencia de 72 h del guardián (multisig 5‑de‑7) con espera de 7 días entre pausas. Los parámetros sólo cambian vía propuesta. |
+| `TokenFaucet` | 50 TKN por dirección cada 24 h. **Sólo testnets**: el constructor revierte en redes principales. |
+
+Decisiones y límites a tener presentes:
+
+- El poder de voto es el TKN en stake. El whitepaper menciona «1 NFT = 1 voto ponderado»: los ERC‑721 de impacto no guardan historial de saldos, así que votar con ellos permitiría doble voto moviendo el NFT. Una extensión segura requeriría un NFT con checkpoints o un registro de «NFT verificados» con snapshot.
+- Sin delegación de votos.
+- El admin (Safe) puede pausar el token, que bloquea toda transferencia, emisión y quema. Es el control de emergencia previsto.
+
+```bash
+make deploy-economy-local      # anvil
+make deploy-economy-sepolia    # agrega las direcciones a deployments/<chainId>.json
+```
+
+Variables opcionales de `DeployEconomy`: `ADMIN_ADDRESS` (obligatoria en mainnet), `COMPLIANCE_ADDRESS`, `GUARDIAN_ADDRESS`, `TKN_CAP`, `STAKING_APR_BPS`, `VOTING_DELAY`, `VOTING_PERIOD`, `TIMELOCK_DELAY`, `QUORUM_BPS`, `PROPOSAL_THRESHOLD`, `DEPLOY_FAUCET`.
+
 ## Flujo circular
 
 ```mermaid

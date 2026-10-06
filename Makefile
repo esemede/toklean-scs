@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: build test fmt anvil deploy-local deploy-amoy setup-amoy deploy-sepolia setup-sepolia abis balance
+.PHONY: build test fmt anvil deploy-local deploy-amoy setup-amoy deploy-sepolia setup-sepolia deploy-economy-local deploy-economy-sepolia abis balance
 
 build:
 	forge build --sizes
@@ -30,6 +30,12 @@ deploy-sepolia:
 
 setup-sepolia:
 	forge script script/SetupTestnet.s.sol --rpc-url sepolia --broadcast
+
+deploy-economy-local:
+	forge script script/DeployEconomy.s.sol --rpc-url local --broadcast
+
+deploy-economy-sepolia:
+	forge script script/DeployEconomy.s.sol --rpc-url sepolia --broadcast $(if $(ETHERSCAN_API_KEY),--verify,)
 
 balance:
 	cast balance --ether $$(cast wallet address $(PRIVATE_KEY)) --rpc-url $(AMOY_RPC_URL)

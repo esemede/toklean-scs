@@ -10,6 +10,10 @@ const CONTRACTS = [
   'RecyclingBatchNFT',
   'CircularProductNFT',
   'CleanupActionNFT',
+  'ToKleanToken',
+  'ToKleanStaking',
+  'ToKleanGovernance',
+  'TokenFaucet',
 ];
 const target = resolve(process.argv[2] ?? '../toklean-front/src/abi/impact');
 mkdirSync(target, { recursive: true });
