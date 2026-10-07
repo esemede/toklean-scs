@@ -203,6 +203,24 @@ describe('detail endpoints', () => {
     const one = await body(await get(`/v1/merchants/${SELLER}`));
     expect(one).toMatchObject({ name: 'EcoTienda', completedSales: 7, listings: 5 });
     expect((await get(`/v1/merchants/${ADDR(77)}`)).status).toBe(404);
+    // Cola de revisión para compliance
+    const pending = await body(await get('/v1/merchants?status=pending'));
+    expect(pending.items.map((m: any) => m.address)).toEqual([ADDR(9)]);
+    expect((await get('/v1/merchants?status=nope')).status).toBe(400);
+  });
+
+  it('forces an index refresh, throttled to one every two seconds', async () => {
+    let runs = 0;
+    indexer.sync = async () => {
+      runs++;
+      return { from: 1, to: 95, head: 100, events: 0 };
+    };
+    const first = await body(await get('/v1/sync', { method: 'POST' }));
+    expect(first).toMatchObject({ ok: true, throttled: false, lastBlock: 95 });
+    expect((await body(await get('/v1/sync', { method: 'POST' }))).throttled).toBe(true);
+    clock += 3;
+    expect((await body(await get('/v1/sync', { method: 'POST' }))).throttled).toBe(false);
+    expect(runs).toBe(2);
   });
 
   it('serves orders by buyer or seller with the listing summary, and requires a filter', async () => {

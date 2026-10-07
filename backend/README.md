@@ -51,7 +51,8 @@ Los ABIs (`src/generated/abis.ts`) salen de `forge build` con `pnpm abis`.
 | `GET /v1/config` | red, direcciones, medios de pago, categorías y límites de subida |
 | `GET /v1/listings` | `q`, `category`, `kind`, `payment`, `seller`, `clean`, `available`, `minPrice`, `maxPrice` (en unidades del token), `sort` (`new`, `priceAsc`, `priceDesc`, `rating`), `limit`, `cursor`. Devuelve `items`, `total`, `nextCursor` y `facets` |
 | `GET /v1/listings/:id` | una publicación (cualquier estado) |
-| `GET /v1/merchants`, `/v1/merchants/:address` | comercios aprobados / ficha |
+| `GET /v1/merchants?status=approved\|pending\|suspended`, `/v1/merchants/:address` | comercios por estado (cola de compliance) / ficha |
+| `POST /v1/sync` | refresca el índice ya mismo (máx. una vez cada 2 s); la app lo llama tras cada transacción |
 | `GET /v1/orders?buyer=\|seller=&status=` | pedidos con resumen de la publicación |
 | `GET /v1/accounts/:address` | comercio, pedidos y **saldos retirables leídos de la cadena** |
 | `GET /v1/stats` | comercios, publicaciones, pedidos y volumen por token |

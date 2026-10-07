@@ -38,6 +38,8 @@ export function createApi(deps: ApiDeps): (req: Request) => Promise<Response> {
     now,
   };
 
+  let lastForcedSync = 0;
+
   async function route(req: Request, url: URL): Promise<Response> {
     const { state } = deps.indexer;
     const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -93,8 +95,9 @@ export function createApi(deps: ApiDeps): (req: Request) => Promise<Response> {
     }
 
     if (method === 'GET' && path === '/v1/merchants') {
+      const status = z.enum(['approved', 'pending', 'suspended']).default('approved').parse(params.status);
       const items = Object.values(state.merchants)
-        .filter((m) => m.status === 'approved')
+        .filter((m) => m.status === status)
         .sort((a, b) => b.completedSales - a.completedSales || b.ratingAvg - a.ratingAvg)
         .map((m) => toSellerDto(m.address, m, deps.policy));
       return json({ items }, {}, cache);
@@ -163,6 +166,15 @@ export function createApi(deps: ApiDeps): (req: Request) => Promise<Response> {
         {},
         cache,
       );
+    }
+
+    // Refresca el índice ya mismo (la app lo llama justo después de una transacción). Frecuencia limitada.
+    if (method === 'POST' && path === '/v1/sync') {
+      const t = now();
+      if (t - lastForcedSync < 2) return json({ ok: true, throttled: true, lastBlock: state.lastBlock });
+      lastForcedSync = t;
+      const r = await deps.indexer.sync();
+      return json({ ok: true, throttled: false, lastBlock: r.to, head: r.head });
     }
 
     // ---- subidas (firmadas por la wallet) y archivos del almacenamiento local
