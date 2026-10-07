@@ -1,0 +1,31 @@
+{
+  "name": "toklean-marketplace-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Indexador, API de catálogo y servicio de metadata del marketplace ToKlean (toklean-scs)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "abis": "node scripts/gen-abis.mjs",
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "seed:local": "tsx scripts/seed-local.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "check": "pnpm typecheck && pnpm test"
+  },
+  "dependencies": {
+    "viem": "^2.57.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

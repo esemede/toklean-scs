@@ -14,6 +14,9 @@ const CONTRACTS = [
   'ToKleanStaking',
   'ToKleanGovernance',
   'TokenFaucet',
+  'ToKleanMerchantRegistry',
+  'ToKleanCatalog',
+  'ToKleanMarketplace',
 ];
 const target = resolve(process.argv[2] ?? '../toklean-front/src/abi/impact');
 mkdirSync(target, { recursive: true });

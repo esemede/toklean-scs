@@ -32,7 +32,8 @@ contract SeedDemo is Script {
 
     function run() external {
         require(block.chainid == 31337, unicode"SeedDemo: sólo anvil local");
-        string memory mnemonic = vm.envOr("MNEMONIC", string("test test test test test test test test test test test junk"));
+        string memory mnemonic =
+            vm.envOr("MNEMONIC", string("test test test test test test test test test test test junk"));
         admin = vm.deriveKey(mnemonic, 0);
         collector = vm.deriveKey(mnemonic, 1);
         center = vm.deriveKey(mnemonic, 2);
@@ -91,13 +92,19 @@ contract SeedDemo is Script {
         vm.stopBroadcast();
     }
 
-    function _collectionOnly(MaterialType material, uint96 grams, string memory origin) internal returns (uint256 id) {
+    function _collectionOnly(MaterialType material, uint96 grams, string memory origin)
+        internal
+        returns (uint256 id)
+    {
         vm.startBroadcast(collector);
         id = batches.registerCollection(material, grams, origin, EV, URI);
         vm.stopBroadcast();
     }
 
-    function _batchToManufacturer(MaterialType material, uint96 grams, string memory origin) internal returns (uint256 id) {
+    function _batchToManufacturer(MaterialType material, uint96 grams, string memory origin)
+        internal
+        returns (uint256 id)
+    {
         id = _collectionOnly(material, grams, origin);
         address c = vm.addr(center);
         address r = vm.addr(recycler);

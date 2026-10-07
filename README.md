@@ -36,6 +36,33 @@ make deploy-economy-sepolia    # agrega las direcciones a deployments/<chainId>.
 
 Variables opcionales de `DeployEconomy`: `ADMIN_ADDRESS` (obligatoria en mainnet), `COMPLIANCE_ADDRESS`, `GUARDIAN_ADDRESS`, `TKN_CAP`, `STAKING_APR_BPS`, `VOTING_DELAY`, `VOTING_PERIOD`, `TIMELOCK_DELAY`, `QUORUM_BPS`, `PROPOSAL_THRESHOLD`, `DEPLOY_FAUCET`.
 
+## Marketplace
+
+Tres contratos (cada uno < 10 KB, ver nota de gas) y un backend:
+
+| Pieza | Qué hace |
+| --- | --- |
+| `ToKleanMerchantRegistry` | Comercios: postulación, aprobación del comité de compliance (`MERCHANT_ADMIN_ROLE`), suspensión y reputación (ventas y valoraciones 1‑5 de compras reales). |
+| `ToKleanCatalog` | Publicaciones de productos y servicios con stock, precio y medio de pago (TKN/REC). Una publicación puede vincular un `CircularProductNFT` **certificado**: el pasaporte queda en custodia y viaja al comprador al cerrarse la venta; si la certificación se revoca, la publicación deja de estar disponible. Aquí vive la pausa. |
+| `ToKleanMarketplace` | Pedidos con **escrow**: Pagada → Enviada → Completada. El comprador confirma o, vencida la ventana, cualquiera libera; si el vendedor no envía a tiempo el comprador se reembolsa solo; disputas resueltas por el árbitro (y, si nadie resuelve, el comprador recupera todo). Pagos *pull* (`withdraw`), comisión (2 %), POR al comprador de un producto limpio, `maxUnitPrice` anti front‑running. |
+| `backend/` | Indexa eventos, verifica y sirve la metadata, API de catálogo con búsqueda, subidas firmadas y keeper. Ver `backend/README.md`. |
+
+Garantías: ninguna cuenta que rechace tokens puede bloquear un pedido o una resolución (pagos *pull*); una venta
+nunca queda atascada por un fallo al emitir POR; la pausa no bloquea liberar, reembolsar, disputar ni retirar.
+Tests: unitarios, *fuzz* de conservación de fondos e **invariantes** (el marketplace siempre tiene exactamente lo
+que debe a pedidos abiertos y saldos acreditados).
+
+```bash
+make deploy-marketplace-local      # anvil
+make deploy-marketplace-sepolia    # agrega registro, catálogo y marketplace a deployments/<chainId>.json
+```
+
+> **Tamaño y gas:** en Sepolia hoy cada byte de código cuesta ~1.600 de gas y el tope por transacción es 16,7 M,
+> así que un contrato debe pesar menos de ~10 KB (`test_DeployedSizeFitsTheGasBudget` lo vigila). Por eso el
+> marketplace son tres contratos y no guarda textos: sólo `keccak256(uri)`, con la URI en eventos. El multiplicador
+> de `make deploy-marketplace-sepolia` (710) está calculado para esos tamaños; recalcúlalo si cambian.
+> Los NFTs de impacto grandes (p. ej. `RecyclingBatchNFT`, 18 KB) ya no se podrían volver a desplegar en esta red.
+
 ## Flujo circular
 
 ```mermaid

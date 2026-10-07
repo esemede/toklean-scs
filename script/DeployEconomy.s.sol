@@ -98,7 +98,8 @@ contract DeployEconomy is Script {
             proposalThreshold: vm.envOr("PROPOSAL_THRESHOLD", uint256(100 ether))
         });
         uint256 id = block.chainid;
-        bool mainnet = id == 1 || id == 137 || id == 10 || id == 42161 || id == 8453 || id == 56 || id == 43114;
+        bool mainnet =
+            id == 1 || id == 137 || id == 10 || id == 42161 || id == 8453 || id == 56 || id == 43114;
         c.faucet = vm.envOr("DEPLOY_FAUCET", !mainnet);
         require(!(mainnet && c.faucet), "DeployEconomy: faucet no permitido en mainnet");
         if (mainnet) {

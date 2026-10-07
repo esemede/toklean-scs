@@ -18,3 +18,32 @@ jobs:
         run: forge build --sizes
       - name: Test
         run: forge test -vvv
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Types and unit tests
+        run: pnpm check
+      - name: ABIs are up to date
+        run: |
+          forge build --root .. >/dev/null
+          pnpm abis
+          git diff --exit-code src/generated/abis.ts
+      - name: End-to-end (anvil + deploy scripts + backend)
+        run: pnpm test:e2e
