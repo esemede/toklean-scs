@@ -33,8 +33,14 @@ export class FakeChain implements ChainReader {
   claimable = new Map<string, Record<number, bigint>>();
   reads = { merchants: 0, listings: 0, orders: 0, logs: 0 };
 
+  timestamp = 1_800_000_000;
+
   async getBlockNumber() {
     return this.head;
+  }
+
+  async getTimestamp() {
+    return this.timestamp;
   }
 
   async getLogs(from: bigint, to: bigint) {

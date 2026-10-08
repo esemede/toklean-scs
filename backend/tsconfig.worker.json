@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "@cloudflare/workers-types"
+    ],
+    "lib": [
+      "ES2023",
+      "DOM.Iterable"
+    ],
+    "noEmit": true
+  },
+  "include": [
+    "worker",
+    "src/api",
+    "src/auth.ts",
+    "src/bytes.ts",
+    "src/config.ts",
+    "src/deployment-schema.ts",
+    "src/indexer/chain.ts",
+    "src/indexer/indexer.ts",
+    "src/indexer/store-types.ts",
+    "src/indexer/abis.ts",
+    "src/keeper.ts",
+    "src/metadata/schema.ts",
+    "src/metadata/fetch.ts",
+    "src/metadata/uri.ts",
+    "src/metadata/object-store.ts",
+    "src/metadata/pinata.ts",
+    "src/types.ts",
+    "src/generated"
+  ]
+}

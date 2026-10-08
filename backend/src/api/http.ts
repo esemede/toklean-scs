@@ -1,3 +1,5 @@
+import { concatBytes } from '../bytes.ts';
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -36,7 +38,7 @@ export async function readBody(req: Request, maxBytes: number): Promise<Uint8Arr
     }
     chunks.push(value);
   }
-  return Buffer.concat(chunks);
+  return concatBytes(chunks);
 }
 
 export function corsHeaders(origin: string | null, allowed: string[]): Record<string, string> {

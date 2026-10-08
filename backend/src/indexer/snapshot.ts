@@ -1,11 +1,9 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { IndexState } from '../types.ts';
+import type { SnapshotStore } from './store-types.ts';
 
-export interface SnapshotStore {
-  load(): Promise<IndexState | null>;
-  save(state: IndexState): Promise<void>;
-}
+export type { SnapshotStore } from './store-types.ts';
 
 export class MemorySnapshotStore implements SnapshotStore {
   saved: IndexState | null = null;

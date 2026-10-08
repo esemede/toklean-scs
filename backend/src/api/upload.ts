@@ -4,7 +4,7 @@ import { AuthError, RateLimiter, verifyUploadAuth, type UploadKind } from '../au
 import type { ChainReader } from '../indexer/chain.ts';
 import type { Indexer } from '../indexer/indexer.ts';
 import { canonicalize, schemaFor, sha256Hex, type MetadataKind } from '../metadata/schema.ts';
-import type { ObjectStore } from '../metadata/store.ts';
+import type { ObjectStore } from '../metadata/object-store.ts';
 import { resolveUri, type UriPolicy } from '../metadata/uri.ts';
 import { ApiError } from './http.ts';
 
@@ -70,7 +70,7 @@ export async function uploadMetadata(deps: UploadDeps, req: Request, kindParam: 
 
   let json: unknown;
   try {
-    json = JSON.parse(Buffer.from(body).toString('utf8'));
+    json = JSON.parse(new TextDecoder().decode(body));
   } catch {
     throw new ApiError(400, 'invalid_json', 'El cuerpo no es JSON válido');
   }

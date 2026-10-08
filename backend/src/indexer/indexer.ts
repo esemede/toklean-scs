@@ -1,6 +1,6 @@
 import { keccak256, toBytes, type Address, type Hex } from 'viem';
 import type { ChainLog, ChainReader, RawListing, RawMerchant, RawOrder } from './chain.ts';
-import type { SnapshotStore } from './snapshot.ts';
+import type { SnapshotStore } from './store-types.ts';
 import { MetadataFetchError, type JsonFetcher } from '../metadata/fetch.ts';
 import { listingMetadataSchema, merchantProfileSchema } from '../metadata/schema.ts';
 import { resolveUri, type UriPolicy } from '../metadata/uri.ts';
@@ -29,6 +29,13 @@ export interface IndexerOptions {
   confirmations?: number;
   /** Tamaño de cada consulta de eventos. */
   chunkBlocks?: number;
+  /**
+   * Tope de consultas de eventos por sincronización. Con el plan gratuito de Workers cada ejecución admite pocas
+   * subrequests; lo que falte se indexa en la siguiente. Sin tope por defecto.
+   */
+  maxChunksPerRun?: number;
+  /** Tope de descargas de metadata por sincronización (cada una es una subrequest). */
+  maxEnrichPerRun?: number;
   /** Segundos unix (inyectable en tests). */
   now?: () => number;
   log?: (message: string) => void;
@@ -53,14 +60,28 @@ export class Indexer {
   ready = false;
   private readonly confirmations: number;
   private readonly chunk: number;
+  private readonly maxChunks: number;
+  private readonly maxEnrich: number;
   private readonly now: () => number;
   private readonly log: (message: string) => void;
   private current: Promise<SyncResult> | null = null;
+
+  /** Hay una sincronización en curso (no conviene recargar el estado desde el almacenamiento). */
+  get busy(): boolean {
+    return this.current !== null;
+  }
+
+  /** Guarda el estado actual en el almacenamiento (p. ej. tras cambios del keeper). */
+  persist(): Promise<void> {
+    return this.o.snapshots.save(this.state);
+  }
   private queued: Promise<SyncResult> | null = null;
 
   constructor(private readonly o: IndexerOptions) {
     this.confirmations = o.confirmations ?? 2;
     this.chunk = o.chunkBlocks ?? 2_000;
+    this.maxChunks = o.maxChunksPerRun ?? Infinity;
+    this.maxEnrich = o.maxEnrichPerRun ?? Infinity;
     this.now = o.now ?? (() => Math.floor(Date.now() / 1000));
     this.log = o.log ?? (() => {});
     this.state = emptyState(o.chainId, o.startBlock);
@@ -112,12 +133,16 @@ export class Indexer {
     const first = from;
 
     if (target < from) {
+      // Sin bloques nuevos igual se guarda: la metadata que se descargó en este tick debe sobrevivir a una recarga.
       await this.enrichMetadata();
+      await this.o.snapshots.save(this.state);
       this.ready = true;
       return { from, to: this.state.lastBlock, head: this.head, events };
     }
 
-    while (from <= target) {
+    let chunks = 0;
+    while (from <= target && chunks < this.maxChunks) {
+      chunks++;
       const to = Math.min(target, from + this.chunk - 1);
       const logs = await this.o.chain.getLogs(BigInt(from), BigInt(to));
       events += logs.length;
@@ -128,7 +153,8 @@ export class Indexer {
     }
     await this.enrichMetadata();
     await this.o.snapshots.save(this.state);
-    this.ready = true;
+    // `ready` sólo cuando el índice alcanzó la cabeza de la cadena (una corrida con tope puede quedar atrás).
+    this.ready = from > target;
     return { from: first, to: this.state.lastBlock, head: this.head, events };
   }
 
@@ -255,7 +281,8 @@ export class Indexer {
       }
     }
 
-    for (let i = 0; i < jobs.length; i += 4) await Promise.all(jobs.slice(i, i + 4).map((j) => j()));
+    const batch = jobs.slice(0, this.maxEnrich);
+    for (let i = 0; i < batch.length; i += 4) await Promise.all(batch.slice(i, i + 4).map((j) => j()));
   }
 
   private async enrich<T>(

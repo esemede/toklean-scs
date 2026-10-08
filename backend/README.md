@@ -74,11 +74,43 @@ La firma vale ±5 minutos, está atada al contenido exacto, hay cuota por cuenta
 **publicación** exige ser comercio aprobado (el perfil del comercio puede subirlo cualquiera, porque va *antes* de
 `applyAsMerchant`).
 
-## Producción
+## Despliegue en Cloudflare Workers (plan gratuito)
 
-- `PINATA_JWT` obligatorio (sin él los archivos no son durables) y `CORS_ORIGINS` con el dominio del frontend.
-- Un proceso por red: el estado del índice es un snapshot JSON en `DATA_DIR` (monta un volumen) y se reconstruye
-  solo desde `marketplaceStartBlock` si falta.
-- El handler (`createApi`) usa la API Fetch estándar: sirve en Node, Workers, Bun o Deno; `src/server.ts` es el
-  adaptador Node. Hay `Dockerfile` (contexto: raíz de `toklean-scs`).
-- Keeper: `KEEPER_PRIVATE_KEY` con una cuenta que sólo tenga ETH para gas; no necesita ningún rol.
+Es la forma recomendada: un Worker (API + cron cada minuto), una base D1 para el índice y Pinata para los archivos.
+Todo cabe en el plan gratuito con holgura (el script pesa ~290 KB comprimido, límite 3 MB).
+
+```bash
+cd backend
+pnpm install
+npx wrangler login
+npx wrangler d1 create toklean-marketplace        # copia el database_id a wrangler.toml
+npx wrangler d1 migrations apply toklean-marketplace --remote
+npx wrangler secret put RPC_URL                   # p. ej. https://ethereum-sepolia-rpc.publicnode.com (o Alchemy)
+npx wrangler secret put PINATA_JWT                # subidas a IPFS
+# opcional, keeper: npx wrangler secret put KEEPER_PRIVATE_KEY  (y KEEPER_AUTO_RELEASE/WITHDRAW=true en wrangler.toml)
+npx wrangler deploy                               # URL: https://toklean-marketplace.<cuenta>.workers.dev
+```
+
+Luego en Cloudflare Pages del frontend define `VITE_MARKETPLACE_API_URL` con esa URL y vuelve a desplegar.
+Los contratos, la red y el dominio del frontend (`CORS_ORIGINS`) están en `wrangler.toml`.
+
+Desarrollo local sin cuentas (anvil + contratos + Pinata simulado + `wrangler dev`):
+
+```bash
+pnpm worker:local      # levanta todo y siembra datos de demostración (ver scripts/worker-local.sh)
+```
+
+### Cómo funciona en Workers
+
+- **Índice en D1:** una fila por comercio, publicación y pedido. Cada sincronización escribe sólo las filas que cambiaron.
+- **Cron cada minuto:** indexa hasta `MAX_CHUNKS_PER_RUN` bloques, descarga la metadata pendiente (`MAX_ENRICH_PER_RUN`) y, si hay keeper, ejecuta hasta 5 acciones.
+  Un índice atrasado se pone al día en las siguientes ejecuciones.
+- **Peticiones:** la API lee el índice de D1 con una caché de 15 s por instancia. `POST /v1/sync` indexa en el momento (la app lo llama tras cada transacción).
+- **Límites conocidos:** el límite de subidas por hora se aplica por instancia, no global. Las subidas van a IPFS (Pinata): en Workers no hay disco.
+- **Plazos:** el keeper mide los plazos con el reloj de la cadena (timestamp del último bloque), no con el del servidor.
+
+### Alternativas
+
+El mismo núcleo corre en Node (`src/server.ts`, `pnpm start`) y en Docker (`Dockerfile`, contexto: raíz de `toklean-scs`),
+por ejemplo en Render o Fly.io. Node guarda el índice y los archivos en disco (`DATA_DIR`).
+

@@ -1,0 +1,5 @@
+# Copia a .dev.vars (no se sube al repo) para `wrangler dev`.
+RPC_URL=http://127.0.0.1:8545
+PINATA_JWT=
+PINATA_API_URL=
+KEEPER_PRIVATE_KEY=

@@ -209,17 +209,15 @@ describe('detail endpoints', () => {
     expect((await get('/v1/merchants?status=nope')).status).toBe(400);
   });
 
-  it('forces an index refresh, throttled to one every two seconds', async () => {
+  it('forces an index refresh on every call', async () => {
     let runs = 0;
     indexer.sync = async () => {
       runs++;
       return { from: 1, to: 95, head: 100, events: 0 };
     };
     const first = await body(await get('/v1/sync', { method: 'POST' }));
-    expect(first).toMatchObject({ ok: true, throttled: false, lastBlock: 95 });
-    expect((await body(await get('/v1/sync', { method: 'POST' }))).throttled).toBe(true);
-    clock += 3;
-    expect((await body(await get('/v1/sync', { method: 'POST' }))).throttled).toBe(false);
+    expect(first).toMatchObject({ ok: true, lastBlock: 95 });
+    await get('/v1/sync', { method: 'POST' });
     expect(runs).toBe(2);
   });
 

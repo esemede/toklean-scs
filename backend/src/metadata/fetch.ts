@@ -1,3 +1,4 @@
+import { concatBytes } from '../bytes.ts';
 import { resolveUri, type UriPolicy } from './uri.ts';
 
 export class MetadataFetchError extends Error {
@@ -28,10 +29,12 @@ export function createJsonFetcher({ policy, fetchImpl = fetch, timeoutMs = 8_000
 
     let res: Response;
     try {
-      res = await fetchImpl(resolved.url, { signal: AbortSignal.timeout(timeoutMs), redirect: 'error', headers: { accept: 'application/json' } });
+      res = await fetchImpl(resolved.url, { signal: AbortSignal.timeout(timeoutMs), redirect: 'manual', headers: { accept: 'application/json' } });
     } catch (e) {
       throw new MetadataFetchError(`no se pudo descargar: ${(e as Error).message}`, false);
     }
+    // Sin seguir redirecciones (`manual`: Workers no admite `error`). Un 3xx no es contenido válido.
+    if (res.status >= 300 && res.status < 400) throw new MetadataFetchError(`redirección HTTP ${res.status} no permitida`, true);
     if (!res.ok) {
       // 404 (aún no propagado), 429 y 5xx son transitorios; el resto de 4xx no mejora reintentando.
       const transient = res.status === 404 || res.status === 429 || res.status >= 500;
@@ -55,7 +58,7 @@ export function createJsonFetcher({ policy, fetchImpl = fetch, timeoutMs = 8_000
       chunks.push(value);
     }
     try {
-      return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      return JSON.parse(new TextDecoder().decode(concatBytes(chunks)));
     } catch {
       throw new MetadataFetchError('no es JSON válido', true);
     }

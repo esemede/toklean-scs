@@ -1,6 +1,6 @@
 import type { Address, Hex, PublicClient } from 'viem';
 import { merchantRegistryAbi, catalogAbi, marketplaceAbi } from './abis.ts';
-import type { Deployment } from '../deployments.ts';
+import type { Deployment } from '../deployment-schema.ts';
 
 export type ContractName = 'registry' | 'catalog' | 'market';
 
@@ -58,6 +58,8 @@ export interface RawOrder {
 /** Todo lo que el indexador necesita de la cadena: permite probarlo sin nodo. */
 export interface ChainReader {
   getBlockNumber(): Promise<bigint>;
+  /** Timestamp (segundos unix) del último bloque: el reloj que cuenta para plazos on-chain. */
+  getTimestamp(): Promise<number>;
   /** Eventos de los tres contratos en [from, to], ordenados por bloque e índice. */
   getLogs(from: bigint, to: bigint): Promise<ChainLog[]>;
   readMerchants(addresses: Address[]): Promise<RawMerchant[]>;
@@ -81,21 +83,29 @@ export function viemChainReader(client: PublicClient, deployment: Deployment): C
     // viem cachea la altura ~4 s por defecto: el indexador necesita siempre la actual.
     getBlockNumber: () => client.getBlockNumber({ cacheTime: 0 }),
 
+    async getTimestamp() {
+      const block = await client.getBlock({ blockTag: 'latest' });
+      return Number(block.timestamp);
+    },
+
     async getLogs(from, to) {
-      const out: ChainLog[] = [];
-      for (const c of CONTRACTS) {
-        const logs = await client.getContractEvents({
-          address: c.pick(deployment),
-          abi: c.abi,
-          fromBlock: from,
-          toBlock: to,
-          strict: true,
-        });
-        for (const l of logs as unknown as { eventName: string; args: Record<string, unknown>; blockNumber: bigint; logIndex: number }[]) {
-          out.push({ contract: c.key, name: l.eventName, args: l.args, blockNumber: l.blockNumber, logIndex: l.logIndex });
-        }
-      }
-      return out.sort((a, b) => (a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1));
+      const perContract = await Promise.all(
+        CONTRACTS.map(async (c) => {
+          const logs = await client.getContractEvents({
+            address: c.pick(deployment),
+            abi: c.abi,
+            fromBlock: from,
+            toBlock: to,
+            strict: true,
+          });
+          return (logs as unknown as { eventName: string; args: Record<string, unknown>; blockNumber: bigint; logIndex: number }[]).map(
+            (l): ChainLog => ({ contract: c.key, name: l.eventName, args: l.args, blockNumber: l.blockNumber, logIndex: l.logIndex }),
+          );
+        }),
+      );
+      return perContract
+        .flat()
+        .sort((a, b) => (a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1));
     },
 
     async readMerchants(addresses) {

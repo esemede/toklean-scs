@@ -12,20 +12,27 @@
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "seed:local": "tsx scripts/seed-local.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "check": "pnpm typecheck && pnpm test"
+    "check": "pnpm typecheck && pnpm test",
+    "worker:dev": "wrangler dev --test-scheduled",
+    "worker:migrate": "wrangler d1 migrations apply toklean-marketplace --remote",
+    "worker:deploy": "wrangler deploy",
+    "worker:local": "./scripts/worker-local.sh"
   },
   "dependencies": {
+    "@noble/hashes": "^2.4.0",
     "viem": "^2.57.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261008.1",
     "@types/node": "^26.6.4",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "wrangler": "^4.148.0"
   }
 }

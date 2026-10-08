@@ -15,7 +15,8 @@ const bool = z
   .optional()
   .transform((v) => v === 'true');
 
-const schema = z.object({
+/** Forma de la configuración (la comparten el servidor Node y el Worker). */
+export const configSchema = z.object({
   /** RPC de la red (Sepolia, anvil...). */
   RPC_URL: z.url(),
   CHAIN_ID: z.coerce.number().int().positive(),
@@ -46,10 +47,10 @@ const schema = z.object({
   KEEPER_INTERVAL_MS: z.coerce.number().int().min(1_000).default(60_000),
 });
 
-export type Config = z.infer<typeof schema>;
+export type Config = z.infer<typeof configSchema>;
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
-  const parsed = schema.safeParse(env);
+  const parsed = configSchema.safeParse(env);
   if (!parsed.success) {
     const detail = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Configuración inválida: ${detail}`);

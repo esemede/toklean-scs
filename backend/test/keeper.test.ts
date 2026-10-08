@@ -84,4 +84,17 @@ describe('keeperTick', () => {
     expect(r.withdrawn).toEqual([{ account: BUYER, id: 2 }]);
     expect(indexer.state.pendingWithdrawals).toEqual([SELLER]);
   });
+
+  it('measures deadlines with the chain clock, not the server clock', async () => {
+    indexer.state.orders = { 1: order(1, 'shipped', NOW + 50) };
+    chain.timestamp = NOW + 100; // la cadena ya pasó el plazo, el servidor no
+    const r = await keeperTick({ indexer, chain, tx: tx as unknown as TxSender, autoRelease: true, autoWithdraw: false });
+    expect(r.released).toEqual([1]);
+  });
+
+  it('respects the per-run action budget', async () => {
+    indexer.state.orders = { 1: order(1, 'shipped', NOW - 1), 2: order(2, 'shipped', NOW - 1), 3: order(3, 'shipped', NOW - 1) };
+    const r = await keeperTick({ indexer, chain, tx: tx as unknown as TxSender, now: () => NOW, autoRelease: true, autoWithdraw: false, maxActions: 2 });
+    expect(r.released).toHaveLength(2);
+  });
 });

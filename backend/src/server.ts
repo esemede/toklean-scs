@@ -28,7 +28,7 @@ function toNodeListener(handler: (req: Request) => Promise<Response>) {
       } as RequestInit);
       const res = await handler(req);
       nodeRes.writeHead(res.status, Object.fromEntries(res.headers));
-      nodeRes.end(Buffer.from(await res.arrayBuffer()));
+      nodeRes.end(new Uint8Array(await res.arrayBuffer()));
     } catch (e) {
       console.error('[server] error', e);
       if (!nodeRes.headersSent) nodeRes.writeHead(500, { 'content-type': 'application/json' });

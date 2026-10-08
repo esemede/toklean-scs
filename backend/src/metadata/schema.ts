@@ -1,4 +1,5 @@
-import { createHash } from 'node:crypto';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { z } from 'zod';
 
 export const CATEGORIES = [
@@ -75,4 +76,6 @@ export function canonicalize(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export const sha256Hex = (data: Uint8Array | string) => createHash('sha256').update(data).digest('hex');
+/** SHA-256 en hex. Sincrónico y sin APIs de Node: corre igual en Node y en Workers. */
+export const sha256Hex = (data: Uint8Array | string) =>
+  bytesToHex(sha256(typeof data === 'string' ? new TextEncoder().encode(data) : data));

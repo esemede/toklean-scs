@@ -15,7 +15,7 @@ describe('createJsonFetcher', () => {
     const fetchJson = createJsonFetcher({ policy: POLICY, fetchImpl: fetchImpl as unknown as typeof fetch });
     await expect(fetchJson(`ipfs://${CID}`)).resolves.toEqual({ a: 1 });
     expect(fetchImpl.mock.calls[0]![0]).toBe(`https://gw.test/ipfs/${CID}`);
-    expect(fetchImpl.mock.calls[0]![1]?.redirect).toBe('error');
+    expect(fetchImpl.mock.calls[0]![1]?.redirect).toBe('manual');
   });
 
   it('refuses URIs outside the policy without touching the network', async () => {
@@ -32,6 +32,7 @@ describe('createJsonFetcher', () => {
     await expect(run(() => reply('', { status: 503 }))).rejects.toMatchObject({ permanent: false });
     await expect(run(() => reply('', { status: 429 }))).rejects.toMatchObject({ permanent: false });
     await expect(run(() => reply('', { status: 403 }))).rejects.toMatchObject({ permanent: true });
+    await expect(run(() => reply('', { status: 302, headers: { location: 'https://evil.example/x' } }))).rejects.toMatchObject({ permanent: true });
     await expect(run(() => reply('not json'))).rejects.toMatchObject({ permanent: true });
     await expect(run(() => Promise.reject(new Error('ECONNRESET')))).rejects.toMatchObject({ permanent: false });
   });

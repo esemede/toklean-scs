@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { RateLimiter } from '../auth.ts';
-import type { Deployment } from '../deployments.ts';
+import type { Deployment } from '../deployment-schema.ts';
 import type { ChainReader } from '../indexer/chain.ts';
 import type { Indexer } from '../indexer/indexer.ts';
 import { CATEGORIES } from '../metadata/schema.ts';
-import type { ObjectStore } from '../metadata/store.ts';
+import type { ObjectStore } from '../metadata/object-store.ts';
 import type { UriPolicy } from '../metadata/uri.ts';
 import { PAYMENT_SYMBOLS } from '../types.ts';
 import { toListingDto, toOrderDto, toSellerDto } from './dto.ts';
@@ -37,8 +37,6 @@ export function createApi(deps: ApiDeps): (req: Request) => Promise<Response> {
     global: new RateLimiter(deps.uploadsPerHour * 20),
     now,
   };
-
-  let lastForcedSync = 0;
 
   async function route(req: Request, url: URL): Promise<Response> {
     const { state } = deps.indexer;
@@ -168,13 +166,11 @@ export function createApi(deps: ApiDeps): (req: Request) => Promise<Response> {
       );
     }
 
-    // Refresca el índice ya mismo (la app lo llama justo después de una transacción). Frecuencia limitada.
+    // Indexa ya mismo (la app lo llama justo después de una transacción). Las llamadas concurrentes comparten una
+    // sola sincronización (ver Indexer.sync), así que no hace falta limitarlas aquí.
     if (method === 'POST' && path === '/v1/sync') {
-      const t = now();
-      if (t - lastForcedSync < 2) return json({ ok: true, throttled: true, lastBlock: state.lastBlock });
-      lastForcedSync = t;
       const r = await deps.indexer.sync();
-      return json({ ok: true, throttled: false, lastBlock: r.to, head: r.head });
+      return json({ ok: true, lastBlock: r.to, head: r.head });
     }
 
     // ---- subidas (firmadas por la wallet) y archivos del almacenamiento local
@@ -189,7 +185,7 @@ export function createApi(deps: ApiDeps): (req: Request) => Promise<Response> {
       const kind = file[1] as 'media' | 'metadata';
       const found = await deps.store.get(kind, file[2]!);
       if (!found) throw new ApiError(404, 'not_found', 'Archivo inexistente');
-      return new Response(Buffer.from(found.bytes), {
+      return new Response(found.bytes, {
         headers: {
           'content-type': found.contentType,
           'cache-control': 'public, max-age=31536000, immutable',

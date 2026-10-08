@@ -1,0 +1,42 @@
+# Backend del marketplace en Cloudflare Workers (plan gratuito).
+#   Desarrollo:  npx wrangler dev --test-scheduled   (usa .dev.vars y D1 local)
+#   Despliegue:  npx wrangler d1 create toklean-marketplace   (copia el database_id abajo)
+#                npx wrangler d1 migrations apply toklean-marketplace --remote
+#                npx wrangler secret put RPC_URL  /  PINATA_JWT  /  KEEPER_PRIVATE_KEY (opcional)
+#                npx wrangler deploy
+
+name = "toklean-marketplace"
+main = "worker/index.ts"
+compatibility_date = "2026-01-01"
+
+# Indexa la cadena y descarga metadata cada minuto.
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "toklean-marketplace"
+database_id = "REEMPLAZAR-CON-EL-ID-DE-D1"
+migrations_dir = "worker/migrations"
+
+[vars]
+# Red y contratos (deployments/<chainId>.json). Sepolia por defecto.
+CHAIN_ID = "11155111"
+MARKETPLACE_START_BLOCK = "11866001"
+TOKLEAN_TOKEN = "0xB08A41C3a475976F08F87598C5966D92A4386F9f"
+CIRCULAR_PRODUCT_NFT = "0xb29143Dec2c9ac2Ed615ff0606255c9DaF4eC377"
+MERCHANT_REGISTRY = "0xC6c1Ad7774c8A48961Dd31517b0B8d177a15BB53"
+CATALOG = "0x148b1B053727dEDfAa9626B197266adb420390d5"
+MARKETPLACE = "0x1072732BDFC2b77bc889Bcb3FBb2B26f37BA1102"
+
+# Frontend autorizado (coma). Añade el dominio de producción y el de los previews de Pages.
+CORS_ORIGINS = "https://toklean.cl,https://toklean-front.pages.dev"
+ALLOWED_HOSTS = ""
+IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/"
+CONFIRMATIONS = "2"
+UPLOADS_PER_HOUR = "60"
+# Límites por ejecución del cron (plan gratuito: pocas subrequests por invocación).
+MAX_CHUNKS_PER_RUN = "5"
+MAX_ENRICH_PER_RUN = "20"
+KEEPER_AUTO_RELEASE = "false"
+KEEPER_AUTO_WITHDRAW = "false"
