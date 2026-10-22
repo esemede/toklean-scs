@@ -79,20 +79,59 @@ La firma vale ±5 minutos, está atada al contenido exacto, hay cuota por cuenta
 Es la forma recomendada: un Worker (API + cron cada minuto), una base D1 para el índice y Pinata para los archivos.
 Todo cabe en el plan gratuito con holgura (el script pesa ~290 KB comprimido, límite 3 MB).
 
+**Con un comando** (`pnpm worker:release`, funciona igual en Windows, macOS y Linux). Es idempotente: crea la base D1
+si falta y escribe su `database_id` en `wrangler.toml`, aplica las migraciones pendientes, despliega con los secretos,
+comprueba `/health` y te dice qué falta en el frontend.
+
 ```bash
 cd backend
 pnpm install
-npx wrangler login
+npx wrangler login                                # o define CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID
+```
+
+Los secretos se leen de variables de entorno (nunca como argumentos, para que no queden en el historial):
+
+```bash
+# bash / zsh
+RPC_URL=https://ethereum-sepolia-rpc.publicnode.com PINATA_JWT=... pnpm worker:release
+
+# PowerShell
+$env:RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com"; $env:PINATA_JWT = "..."; pnpm worker:release
+```
+
+| Variable | Obligatoria | Para qué |
+| --- | --- | --- |
+| `RPC_URL` | Sí (https) | RPC de la cadena; puede llevar API key |
+| `PINATA_JWT` | Recomendada | Subidas a IPFS; sin ella las imágenes fallan |
+| `KEEPER_PRIVATE_KEY` | No | Cuenta que paga el gas del keeper (actívalo con `KEEPER_AUTO_RELEASE`/`KEEPER_AUTO_WITHDRAW=true` en `wrangler.toml`) |
+
+Opciones: `--dry-run` compila y valida sin tocar Cloudflare ni pedir credenciales; `--keep-secrets` redespliega sin
+volver a subir los secretos; `--skip-health` omite la comprobación final.
+
+**Desde GitHub Actions:** el workflow `deploy-worker` (manual, entorno `production`) ejecuta el mismo comando con los
+secretos del repositorio `CLOUDFLARE_API_TOKEN` (permisos *Workers Scripts: Edit*, *D1: Edit*, *Account Settings:
+Read*), `CLOUDFLARE_ACCOUNT_ID`, `RPC_URL`, `PINATA_JWT` y, opcional, `KEEPER_PRIVATE_KEY`.
+
+La primera vez, la cuenta de Cloudflare debe tener un subdominio `workers.dev` (Workers & Pages > Overview); si no,
+`wrangler deploy` no puede publicar sin preguntar.
+
+Luego, en Cloudflare Pages del frontend define `VITE_MARKETPLACE_API_URL` con la URL que imprime el script y vuelve
+a desplegar. Los contratos, la red y el dominio del frontend (`CORS_ORIGINS`) están en `wrangler.toml`.
+
+<details>
+<summary>Pasos manuales equivalentes</summary>
+
+```bash
+cd backend
 npx wrangler d1 create toklean-marketplace        # copia el database_id a wrangler.toml
 npx wrangler d1 migrations apply toklean-marketplace --remote
-npx wrangler secret put RPC_URL                   # p. ej. https://ethereum-sepolia-rpc.publicnode.com (o Alchemy)
-npx wrangler secret put PINATA_JWT                # subidas a IPFS
-# opcional, keeper: npx wrangler secret put KEEPER_PRIVATE_KEY  (y KEEPER_AUTO_RELEASE/WITHDRAW=true en wrangler.toml)
+npx wrangler secret put RPC_URL
+npx wrangler secret put PINATA_JWT
+npx wrangler secret put KEEPER_PRIVATE_KEY        # opcional
 npx wrangler deploy                               # URL: https://toklean-marketplace.<cuenta>.workers.dev
 ```
 
-Luego en Cloudflare Pages del frontend define `VITE_MARKETPLACE_API_URL` con esa URL y vuelve a desplegar.
-Los contratos, la red y el dominio del frontend (`CORS_ORIGINS`) están en `wrangler.toml`.
+</details>
 
 Desarrollo local sin cuentas (anvil + contratos + Pinata simulado + `wrangler dev`):
 

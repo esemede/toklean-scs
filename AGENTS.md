@@ -143,7 +143,7 @@ reorgs o eventos perdidos.
 | `worker/d1-snapshot.ts` | Guardado diferencial en D1 (una fila por comercio, publicación y pedido, lotes de 50) |
 | `worker/migrations/` | Esquema D1 (`meta`, `merchants`, `listings`, `orders`) |
 | `src/generated/abis.ts` | ABIs generadas (`pnpm abis`, desde `forge build`) |
-| `scripts/` | `gen-abis.mjs`, `seed-local.ts` (datos de demo por el flujo real), `stub-pinata.mjs`, `worker-local.sh`, `png.ts` |
+| `scripts/` | `gen-abis.mjs`, `seed-local.ts` (datos de demo por el flujo real), `stub-pinata.mjs`, `worker-local.sh`, `png.ts`, `deploy-worker.ts` y `deploy-lib.ts` (`pnpm worker:release`, §5.2) |
 
 ### 3.2 API
 
@@ -298,17 +298,25 @@ commit de los registros de `broadcast/` (el hook de git avisa de archivos sin se
 Un Worker con la API y un cron cada minuto, una base D1 para el índice y Pinata para los archivos. El script pesa
 ~290 KB comprimido (límite 3 MB).
 
+Un solo comando, idempotente y multiplataforma (Node, sin bash). Las credenciales de Cloudflare vienen de
+`npx wrangler login` o de `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`; los secretos, de variables de entorno
+(nunca argumentos): `RPC_URL` (obligatoria, https), `PINATA_JWT` y `KEEPER_PRIVATE_KEY` (opcionales).
+
 ```bash
 cd backend
 pnpm install
-npx wrangler login
-npx wrangler d1 create toklean-marketplace        # copia el database_id en wrangler.toml (hoy: REEMPLAZAR-CON-EL-ID-DE-D1)
-npx wrangler d1 migrations apply toklean-marketplace --remote
-npx wrangler secret put RPC_URL                   # p. ej. https://ethereum-sepolia-rpc.publicnode.com
-npx wrangler secret put PINATA_JWT
-# opcional: npx wrangler secret put KEEPER_PRIVATE_KEY (y KEEPER_AUTO_* = "true" en wrangler.toml)
-npx wrangler deploy                               # https://toklean-marketplace.<cuenta>.workers.dev
+pnpm worker:release                # crea D1 si falta, aplica migraciones, despliega con secretos y comprueba /health
+pnpm worker:release --dry-run      # compila y valida sin tocar Cloudflare ni pedir credenciales
+pnpm worker:release --keep-secrets # redespliegue sin volver a subir secretos
 ```
+
+El script (`backend/scripts/deploy-worker.ts`, con la lógica pura probada en `deploy-lib.ts`) escribe el `database_id`
+real en `wrangler.toml`: **haz commit de ese cambio**. Imprime la URL del Worker y los pasos siguientes. Los pasos
+manuales equivalentes están en `backend/README.md`.
+
+También se puede lanzar desde GitHub Actions: workflow `deploy-worker` (manual, entorno `production`) con los secretos
+`CLOUDFLARE_API_TOKEN` (*Workers Scripts: Edit*, *D1: Edit*, *Account Settings: Read*), `CLOUDFLARE_ACCOUNT_ID`,
+`RPC_URL`, `PINATA_JWT` y opcional `KEEPER_PRIVATE_KEY`. La cuenta necesita un subdominio `workers.dev` registrado.
 
 Después, en Cloudflare Pages del frontend define `VITE_MARKETPLACE_API_URL` con esa URL y vuelve a desplegar.
 
@@ -348,6 +356,9 @@ pero no se verifica.
 - **contracts:** `forge fmt --check`, `forge build --sizes`, `forge test -vvv`.
 - **backend:** `pnpm check`; comprueba que `src/generated/abis.ts` coincide con `forge build`; `pnpm test:e2e`.
 
+`.github/workflows/deploy-worker.yml` despliega el Worker en Cloudflare. Es **manual** (`workflow_dispatch`, entorno
+`production`) a propósito: un push no debe cambiar producción sin que alguien lo decida.
+
 El frontend tiene su propia CI (`toklean-front/.github/workflows/ci.yml`).
 
 ---
@@ -362,4 +373,5 @@ Corrige estos puntos al tocar la sección correspondiente:
 - `toklean-front/README.md` documenta `VITE_PUBLIC_CHAIN_ID=80002`, mientras que su `.env.example` usa `11155111`.
 - Las cifras de gas del README ("~7 veces", "~1.600 por byte") son mediciones de Sepolia de este momento: vuelve a
   medirlas antes de cambiar el multiplicador.
-- `backend/wrangler.toml` tiene un `database_id` de marcador de posición: no se puede desplegar hasta reemplazarlo.
+- `backend/wrangler.toml` tiene un `database_id` de marcador de posición hasta el primer `pnpm worker:release`, que lo
+  reemplaza por el id real (haz commit de ese cambio).
