@@ -16,7 +16,7 @@ crons = ["* * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "toklean-marketplace"
-database_id = "REEMPLAZAR-CON-EL-ID-DE-D1"
+database_id = "2717d782-838e-4bfd-882e-603dbb6e18dc"
 migrations_dir = "worker/migrations"
 
 [vars]
