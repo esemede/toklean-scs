@@ -146,6 +146,8 @@ pnpm worker:local      # levanta todo y siembra datos de demostración (ver scri
   Un índice atrasado se pone al día en las siguientes ejecuciones.
 - **Peticiones:** la API lee el índice de D1 con una caché de 15 s por instancia. `POST /v1/sync` indexa en el momento (la app lo llama tras cada transacción).
 - **Límites conocidos:** el límite de subidas por hora se aplica por instancia, no global. Las subidas van a IPFS (Pinata): en Workers no hay disco.
+- **RPC con historial:** para indexar desde el bloque de despliegue (o recuperarse tras días parado) el `RPC_URL` debe conservar los logs antiguos. Los RPC públicos gratuitos podan el historial y fallan con `pruned history unavailable`; usa Alchemy o Infura. Ver `AGENTS.md` §5.2.
+- **`/health`:** `ready` y `head` son por instancia del Worker, así que pueden salir en `false` y `0` aunque el índice esté al día; fíate de `lastBlock`.
 - **Plazos:** el keeper mide los plazos con el reloj de la cadena (timestamp del último bloque), no con el del servidor.
 
 ### Alternativas

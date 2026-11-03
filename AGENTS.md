@@ -334,7 +334,25 @@ Cómo funciona:
 - **Lecturas:** la API lee D1 con caché de 15 s por instancia. `POST /v1/sync` indexa en el momento.
 - **Plazos:** el keeper mide plazos con el timestamp del último bloque, no con el reloj del servidor.
 
-Pendiente de validar en Cloudflare real: despliegue, D1 remoto, cron y límites del plan gratuito en producción.
+**Estado:** desplegado en `https://toklean-marketplace.esemedev.workers.dev` (Sepolia, base D1 `toklean-marketplace`,
+cron cada minuto). Validado en Cloudflare real: despliegue, migración, `/v1/config`, CORS del dominio de Pages y
+sincronización contra la cadena. Sin `PINATA_JWT` las subidas de imágenes fallan: súbelo como secreto del Worker
+(`npx wrangler secret put PINATA_JWT` o *Worker → Settings → Variables and Secrets*) y usa `--keep-secrets` en los
+siguientes redespliegues.
+
+**Limitaciones conocidas:**
+- **RPC público con historial podado.** `ethereum-sepolia-rpc.publicnode.com` reparte las peticiones entre servidores y
+  varios ya no tienen los logs de hace semanas: `eth_getLogs` falla con `pruned history unavailable` en ~60 % de los
+  tramos antiguos. El primer despliegue se atascó ahí. Se resolvió comprobando, tramo a tramo con reintentos, que los
+  tres contratos no tenían más eventos que `RoleGranted` y los de configuración (`listingCount` y `orderCount` en 0), y
+  marcando el bloque 12.058.398 como indexado en la fila `meta` de D1
+  (`UPDATE meta SET value = json_set(value, '$.lastBlock', N) WHERE key = 'state'`). **Si algún día hay que reindexar
+  desde `MARKETPLACE_START_BLOCK` (por ejemplo, con una base D1 nueva), usa un RPC con historial de logs (Alchemy o
+  Infura) como secreto `RPC_URL`, o repite esa verificación antes de adelantar el bloque.** Adelantar el bloque sin
+  verificar descarta comercios y pedidos antiguos sin avisar.
+- **`/health` por instancia.** `ready` y `head` viven en la memoria de cada instancia del Worker; la que atiende
+  `/health` suele no haber sincronizado y muestra `ready: false` y `head: 0` aunque el índice en D1 esté al día
+  (`lastBlock` sí avanza). No lo usa el frontend.
 
 ### 5.3 Alternativa Node / Docker
 
