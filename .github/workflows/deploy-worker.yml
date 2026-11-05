@@ -1,0 +1,52 @@
+name: deploy-worker
+
+# Despliegue manual del backend del marketplace en Cloudflare Workers. Se lanza desde Actions > deploy-worker > Run workflow.
+# Es manual a propósito: un push no debe cambiar producción sin que alguien lo decida.
+#
+# Secretos del repositorio (Settings > Secrets and variables > Actions), o del entorno `production`:
+#   CLOUDFLARE_API_TOKEN   token con permisos Workers Scripts: Edit, D1: Edit y Account Settings: Read
+#   CLOUDFLARE_ACCOUNT_ID  id de la cuenta de Cloudflare
+#   RPC_URL                RPC https de la cadena (puede llevar API key)
+#   PINATA_JWT             JWT de Pinata (subidas a IPFS)
+#   KEEPER_PRIVATE_KEY     opcional: cuenta que paga el gas del keeper
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Types and unit tests
+        run: pnpm check
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RPC_URL: ${{ secrets.RPC_URL }}
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+        run: pnpm worker:release
+      - name: database_id used
+        run: git diff --stat -- wrangler.toml || true
