@@ -3,6 +3,7 @@ import { RateLimiter } from '../auth.ts';
 import type { Deployment } from '../deployment-schema.ts';
 import type { ChainReader } from '../indexer/chain.ts';
 import type { Indexer } from '../indexer/indexer.ts';
+import type { LogsSource } from '../logs/types.ts';
 import { CATEGORIES } from '../metadata/schema.ts';
 import type { ObjectStore } from '../metadata/object-store.ts';
 import type { UriPolicy } from '../metadata/uri.ts';
@@ -20,10 +21,15 @@ export interface ApiDeps {
   policy: UriPolicy;
   corsOrigins: string[];
   uploadsPerHour: number;
+  /** Índice de logs crudos (sólo en el Worker). Sin él, `/v1/logs` responde 404. */
+  logs?: LogsSource;
   now?: () => number;
 }
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
+
+export const MAX_LOGS_LIMIT = 5000;
+const logsQuery = z.object({ address: address.optional(), limit: z.coerce.number().int().min(1).max(MAX_LOGS_LIMIT).default(2000) });
 
 /** Handler Fetch-API (sirve en Node, Workers, Bun o Deno). */
 export function createApi(deps: ApiDeps): (req: Request) => Promise<Response> {
@@ -78,6 +84,12 @@ export function createApi(deps: ApiDeps): (req: Request) => Promise<Response> {
         {},
         cache,
       );
+    }
+
+    if (method === 'GET' && path === '/v1/logs') {
+      if (!deps.logs) throw new ApiError(404, 'not_found', 'Este backend no indexa logs');
+      const q = logsQuery.parse(params);
+      return json(await deps.logs.page({ address: q.address, limit: q.limit }), {}, cache);
     }
 
     if (method === 'GET' && path === '/v1/listings') {

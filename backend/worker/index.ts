@@ -11,10 +11,13 @@ import { RateLimiter } from '../src/auth.ts';
 import { viemChainReader, type ChainReader } from '../src/indexer/chain.ts';
 import { Indexer } from '../src/indexer/indexer.ts';
 import { keeperTick, viemTxSender, type TxSender } from '../src/keeper.ts';
+import { viemRawLogReader } from '../src/logs/chain.ts';
+import { LogIndex } from '../src/logs/log-index.ts';
 import { createJsonFetcher } from '../src/metadata/fetch.ts';
 import type { ObjectStore, StoredObject } from '../src/metadata/object-store.ts';
 import { PinataStore } from '../src/metadata/pinata.ts';
 import type { UriPolicy } from '../src/metadata/uri.ts';
+import { D1LogStore } from './d1-log-store.ts';
 import { D1SnapshotStore } from './d1-snapshot.ts';
 import { readConfig, type Env } from './env.ts';
 
@@ -26,6 +29,7 @@ interface App {
   api: (req: Request) => Promise<Response>;
   chain: ChainReader;
   tx?: TxSender;
+  logIndex?: LogIndex;
   keeper: { release: boolean; withdraw: boolean };
   loadedAt: number;
 }
@@ -69,6 +73,18 @@ function build(env: Env): App {
     tx = viemTxSender(client, wallet, cfg.deployment.ToKleanMarketplace, false);
   }
 
+  const logIndex = cfg.logs
+    ? new LogIndex({
+        reader: viemRawLogReader(client, cfg.logs.addresses),
+        store: new D1LogStore(env.DB),
+        startBlock: cfg.logs.startBlock,
+        addresses: cfg.logs.addresses,
+        confirmations: cfg.confirmations,
+        maxChunksPerRun: cfg.maxChunksPerRun,
+        log: (m) => console.log(m),
+      })
+    : undefined;
+
   const api = createApi({
     indexer,
     chain,
@@ -77,10 +93,11 @@ function build(env: Env): App {
     policy,
     corsOrigins: cfg.corsOrigins,
     uploadsPerHour: cfg.uploadsPerHour,
+    logs: logIndex,
     // Límite de subidas por isolate (no global): suficiente para frenar abusos simples.
     now: () => Math.floor(Date.now() / 1000),
   });
-  return { indexer, api, chain, tx, keeper: { release: cfg.keeperAutoRelease, withdraw: cfg.keeperAutoWithdraw }, loadedAt: 0 };
+  return { indexer, api, chain, tx, logIndex, keeper: { release: cfg.keeperAutoRelease, withdraw: cfg.keeperAutoWithdraw }, loadedAt: 0 };
 }
 
 async function getApp(env: Env): Promise<App> {
@@ -95,8 +112,8 @@ async function fresh(a: App): Promise<void> {
   a.loadedAt = Date.now();
 }
 
-async function tick(env: Env): Promise<void> {
-  const a = await getApp(env);
+/** Índice del marketplace (y keeper). */
+async function indexMarketplace(a: App): Promise<void> {
   // Partimos del estado guardado (por si la API lo actualizó desde otra instancia) antes de indexar.
   await a.indexer.init();
   a.loadedAt = Date.now();
@@ -116,6 +133,29 @@ async function tick(env: Env): Promise<void> {
     for (const e of report.errors) console.log(`keeper: ${e}`);
     if (report.released.length || report.withdrawn.length) await a.indexer.persist();
   }
+}
+
+/** Cada parte corre aunque la otra falle (un RPC que falla en una no debe frenar a la otra); los errores se relanzan al final. */
+async function tick(env: Env): Promise<void> {
+  const a = await getApp(env);
+  const errors: unknown[] = [];
+  const run = async (name: string, job: () => Promise<void>) => {
+    try {
+      await job();
+    } catch (e) {
+      console.log(`${name}: error ${e instanceof Error ? e.message : String(e)}`);
+      errors.push(e);
+    }
+  };
+  await run('marketplace', () => indexMarketplace(a));
+  if (a.logIndex) {
+    const logIndex = a.logIndex;
+    await run('logs', async () => {
+      const r = await logIndex.sync();
+      console.log(`logs indexados hasta ${r.to} (cabeza ${r.head}, ${r.logs} nuevos)`);
+    });
+  }
+  if (errors.length > 0) throw new AggregateError(errors, `${errors.length} tarea(s) del cron fallaron`);
 }
 
 export default {

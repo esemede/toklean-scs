@@ -29,6 +29,10 @@ export interface Env {
   UPLOADS_PER_HOUR?: string;
   MAX_CHUNKS_PER_RUN?: string;
   MAX_ENRICH_PER_RUN?: string;
+  /** Contratos cuyos logs crudos se indexan para el frontend (coma). Requiere LOGS_START_BLOCK. */
+  LOGS_ADDRESSES?: string;
+  /** Primer bloque del índice de logs: antes de él no debe haber eventos que le interesen a la app. */
+  LOGS_START_BLOCK?: string;
   KEEPER_AUTO_RELEASE?: string;
   KEEPER_AUTO_WITHDRAW?: string;
 }
@@ -65,6 +69,8 @@ export interface WorkerConfig {
   maxEnrichPerRun: number;
   keeperAutoRelease: boolean;
   keeperAutoWithdraw: boolean;
+  /** Índice de logs crudos; `undefined` si no está configurado. */
+  logs?: { addresses: `0x${string}`[]; startBlock: number };
 }
 
 export function readConfig(env: Env): WorkerConfig {
@@ -93,5 +99,14 @@ export function readConfig(env: Env): WorkerConfig {
     maxEnrichPerRun: int(env.MAX_ENRICH_PER_RUN, 20),
     keeperAutoRelease: env.KEEPER_AUTO_RELEASE === 'true',
     keeperAutoWithdraw: env.KEEPER_AUTO_WITHDRAW === 'true',
+    logs: readLogs(env),
   };
+}
+
+function readLogs(env: Env): WorkerConfig['logs'] {
+  const addresses = csv(env.LOGS_ADDRESSES);
+  if (addresses.length === 0 && !env.LOGS_START_BLOCK) return undefined;
+  if (addresses.length === 0 || !env.LOGS_START_BLOCK) throw new Error('LOGS_ADDRESSES y LOGS_START_BLOCK deben definirse juntas');
+  for (const a of addresses) if (!/^0x[0-9a-fA-F]{40}$/.test(a)) throw new Error(`LOGS_ADDRESSES: dirección inválida ${a}`);
+  return { addresses: addresses as `0x${string}`[], startBlock: int(env.LOGS_START_BLOCK, 0) };
 }

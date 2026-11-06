@@ -56,6 +56,7 @@ Los ABIs (`src/generated/abis.ts`) salen de `forge build` con `pnpm abis`.
 | `GET /v1/orders?buyer=\|seller=&status=` | pedidos con resumen de la publicación |
 | `GET /v1/accounts/:address` | comercio, pedidos y **saldos retirables leídos de la cadena** |
 | `GET /v1/stats` | comercios, publicaciones, pedidos y volumen por token |
+| `GET /v1/logs?address=&limit=` | logs crudos de los contratos que indexa el Worker (`LOGS_ADDRESSES`), más recientes primero; el frontend los usa en lugar de pedir historial a un RPC público (ver `AGENTS.md` §5.2). 404 en Node/Docker |
 | `POST /v1/media` | imagen PNG/JPEG/WebP ≤ 2 MB (el tipo se valida por contenido; SVG se rechaza) |
 | `POST /v1/metadata?kind=listing\|merchant` | valida el esquema y devuelve `{ uri, uriHash }` para `createListing` / `applyAsMerchant` |
 

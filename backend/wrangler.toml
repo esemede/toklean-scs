@@ -38,5 +38,11 @@ UPLOADS_PER_HOUR = "60"
 # Límites por ejecución del cron (plan gratuito: pocas subrequests por invocación).
 MAX_CHUNKS_PER_RUN = "5"
 MAX_ENRICH_PER_RUN = "20"
+# Índice de logs crudos para el frontend (GET /v1/logs). Los RPC públicos podan el historial de hace más de ~1,5 días y
+# un navegador no puede leerlo de forma fiable; el Worker guarda los logs que ve cada minuto y los sirve desde D1.
+# LOGS_START_BLOCK: antes de él NO hay eventos de estos contratos que le importen a la app (comprobado con reintentos
+# contra un RPC con historial). Antes de adelantarlo o de reindexar desde cero, repite esa comprobación (AGENTS.md §5.2).
+LOGS_ADDRESSES = "0x38253411B52cE8648e1B8E3478E0159BBa7Dc05c,0x1749f719acf82425B14e507513157D1D161Ca1b1,0xb6A3Cf654A910337030A4D8CE143900e01B0C228,0xb29143Dec2c9ac2Ed615ff0606255c9DaF4eC377,0xa7A5248CF4045F19fdBDD04013d15F9affEA4832,0xC6c1Ad7774c8A48961Dd31517b0B8d177a15BB53,0x148b1B053727dEDfAa9626B197266adb420390d5,0x1072732BDFC2b77bc889Bcb3FBb2B26f37BA1102"
+LOGS_START_BLOCK = "12074051"
 KEEPER_AUTO_RELEASE = "false"
 KEEPER_AUTO_WITHDRAW = "false"

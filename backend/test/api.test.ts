@@ -9,6 +9,7 @@ import { authHeader, uploadMessage } from '../src/auth.ts';
 import type { Deployment } from '../src/deployments.ts';
 import { Indexer } from '../src/indexer/indexer.ts';
 import { MemorySnapshotStore } from '../src/indexer/snapshot.ts';
+import { LogIndex, MemoryLogStore } from '../src/logs/log-index.ts';
 import { canonicalize, sha256Hex } from '../src/metadata/schema.ts';
 import { FileStore } from '../src/metadata/store.ts';
 import { emptyState, type ListingRecord, type MerchantRecord, type OrderRecord } from '../src/types.ts';
@@ -419,3 +420,64 @@ describe('POST /v1/metadata', () => {
 });
 
 void merchantRaw;
+
+describe('GET /v1/logs', () => {
+  const ONE = '0x00000000000000000000000000000000000000a1';
+  const rawLog = (block: number, index: number, address = ONE) => ({ block, index, address, topics: [`0x${'11'.repeat(32)}`], data: '0x', tx: `0x${'ab'.repeat(32)}` });
+
+  async function withLogs() {
+    const store = new MemoryLogStore();
+    const logIndex = new LogIndex({
+      reader: { getBlockNumber: async () => 500n, getLogs: async () => [rawLog(210, 0), rawLog(220, 1, ADDR(9)), rawLog(230, 0)] },
+      store,
+      startBlock: 200,
+      addresses: [ONE, ADDR(9)],
+      chunkBlocks: 1000,
+    });
+    await logIndex.sync();
+    return createApi({
+      indexer,
+      chain,
+      store: new FileStore(dir, POLICY.baseUrl),
+      deployment: DEPLOYMENT,
+      policy: POLICY,
+      corsOrigins: ['https://app.toklean.cl'],
+      uploadsPerHour: 10,
+      logs: logIndex,
+      now: () => clock,
+    });
+  }
+
+  it('serves the indexed logs newest first with the coverage and CORS', async () => {
+    const withApi = await withLogs();
+    const res = await withApi(new Request('http://api.test/v1/logs', { headers: { origin: 'https://app.toklean.cl' } }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('access-control-allow-origin')).toBe('https://app.toklean.cl');
+    const data = await body(res);
+    expect(data).toMatchObject({ fromBlock: 200, lastBlock: 498, truncated: false });
+    expect(data.logs.map((l: any) => l.block)).toEqual([230, 220, 210]);
+  });
+
+  it('filters by address and honours the limit', async () => {
+    const withApi = await withLogs();
+    const byAddress = await body(await withApi(new Request(`http://api.test/v1/logs?address=${ONE}`)));
+    expect(byAddress.logs.map((l: any) => l.block)).toEqual([230, 210]);
+    const limited = await body(await withApi(new Request('http://api.test/v1/logs?limit=1')));
+    expect(limited).toMatchObject({ truncated: true });
+    expect(limited.logs).toHaveLength(1);
+  });
+
+  it('rejects malformed addresses and out-of-range limits', async () => {
+    const withApi = await withLogs();
+    for (const q of ['address=nope', 'limit=0', 'limit=999999', 'limit=abc']) {
+      const res = await withApi(new Request(`http://api.test/v1/logs?${q}`));
+      expect(res.status, q).toBe(400);
+    }
+  });
+
+  it('is a 404 on backends without a log index', async () => {
+    const res = await get('/v1/logs');
+    expect(res.status).toBe(404);
+    expect((await body(res)).error.code).toBe('not_found');
+  });
+});
