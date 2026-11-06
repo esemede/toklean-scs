@@ -5,7 +5,6 @@
  *   pnpm worker:release                  # despliegue completo
  *   pnpm worker:release --dry-run        # compila y valida sin tocar Cloudflare (no pide credenciales)
  *   pnpm worker:release --keep-secrets   # redespliegue sin volver a subir los secretos
- *   pnpm worker:release --skip-health    # no consulta /health al terminar
  *
  * Credenciales de Cloudflare: `wrangler login` (interactivo) o CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID.
  * Secretos (variables de entorno, no argumentos): RPC_URL (obligatoria), PINATA_JWT y KEEPER_PRIVATE_KEY (opcionales).
@@ -178,14 +177,12 @@ async function main() {
   log(`Worker desplegado: ${url}`);
 
   // 4) Comprobación
-  if (!flags.has('--skip-health')) {
-    const health = await waitForHealth(url);
-    if (health === undefined) log(`aviso: ${url}/health no respondió todavía. Reintenta en un minuto.`);
-    else log(`/health: ${JSON.stringify(health)}`);
-    const config = (await getJson(`${url}/v1/config`)) as { chainId?: number } | undefined;
-    if (config) log(`/v1/config: red ${config.chainId ?? '?'}`);
-    log('el índice se completa con el cron (cada minuto); al principio /health puede decir ready=false.');
-  }
+  const health = await waitForHealth(url);
+  if (health === undefined) log(`aviso: ${url}/health no respondió todavía. Reintenta en un minuto.`);
+  else log(`/health: ${JSON.stringify(health)}`);
+  const config = (await getJson(`${url}/v1/config`)) as { chainId?: number } | undefined;
+  if (config) log(`/v1/config: red ${config.chainId ?? '?'}`);
+  log('el índice se completa con el cron (cada minuto); al principio /health puede decir ready=false.');
 
   // Lo que falta fuera de este repositorio
   const origins = corsOrigins(readFileSync(tomlPath, 'utf8'));

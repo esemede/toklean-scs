@@ -10,6 +10,26 @@ despliega. El frontend tiene su propia guía en `../toklean-front/AGENTS.md`.
 
 ---
 
+## Principios de trabajo
+
+Adaptados de [karpathy-guidelines](https://github.com/multica-ai/andrej-karpathy-skills) (observaciones de Andrej Karpathy
+sobre los errores típicos de los LLM al programar). Sesgan hacia la cautela; en tareas triviales, usa el criterio.
+
+1. **Piensa antes de codificar.** Explicita tus supuestos. Si hay varias lecturas de la tarea, preséntalas en vez de
+   elegir en silencio. Si hay una solución más simple, dilo. Si algo no está claro, detente y pregunta.
+2. **Simplicidad primero.** El mínimo código que resuelve el problema. Sin funciones, abstracciones, configuración ni
+   manejo de errores para casos imposibles que nadie pidió. Si 200 líneas podrían ser 50, reescribe.
+3. **Cambios quirúrgicos.** Toca sólo lo necesario y limpia sólo tu propio desorden: elimina lo que tus cambios dejaron
+   sin uso, pero no borres código muerto ajeno (menciónalo). Cada línea cambiada debe trazar a lo que se pidió.
+4. **Ejecución guiada por criterios verificables.** Convierte la tarea en una meta comprobable ("arreglar el bug" =
+   escribir la prueba que lo reproduce y hacerla pasar). Las pruebas deben pasar antes y después; en tareas largas,
+   escribe un plan corto con su verificación por paso.
+
+Aquí el criterio de salida es `pnpm check` (backend) y `forge test` (contratos). **Los contratos desplegados son
+inmutables: no se editan sin pedirlo.** Cualquier dato que se afirme sobre la cadena se mide, no se supone.
+
+---
+
 ## 1. Mapa del sistema
 
 ```
@@ -135,13 +155,15 @@ reorgs o eventos perdidos.
 | `src/indexer/` | `indexer.ts` (sincronización por bloques con confirmaciones), `chain.ts` (lectura de logs y estado con viem, `batch: true`), `snapshot.ts` |
 | `src/metadata/` | `fetch.ts` (descarga con política de hosts, sin redirects, tope de tamaño y tiempo), `schema.ts` (esquemas zod `toklean.listing/1` y `toklean.merchant/1`, `keccak256` contra el hash on-chain), `pinata.ts` y `object-store.ts` (IPFS), `store.ts` (disco en Node) |
 | `src/api/` | `router.ts`, `query.ts` (filtros, facetas, cursor), `dto.ts`, `upload.ts`, `http.ts` |
+| `src/logs/` | Índice de logs crudos de contratos (`log-index.ts`, `chain.ts`, `types.ts`): guarda lo que ve el cron y lo sirve en `GET /v1/logs` |
 | `src/keeper.ts` | Libera pedidos vencidos y empuja los saldos acreditados (opcional) |
 | `src/auth.ts` | Verificación de firmas EIP-191 de las subidas |
 | `src/config.ts`, `src/deployments.ts`, `src/deployment-schema.ts` | Configuración y lectura de `deployments/<chainId>.json` |
 | `src/server.ts` | Entrada en Node (`pnpm start`) |
 | `worker/index.ts` | Entrada en Cloudflare Workers: `fetch` (API, caché de 15 s) y `scheduled` (cron cada minuto) |
 | `worker/d1-snapshot.ts` | Guardado diferencial en D1 (una fila por comercio, publicación y pedido, lotes de 50) |
-| `worker/migrations/` | Esquema D1 (`meta`, `merchants`, `listings`, `orders`) |
+| `worker/d1-log-store.ts` | Logs crudos en D1 (tabla `logs`, cursor en `meta`); `INSERT OR IGNORE` hace idempotente repetir un tramo |
+| `worker/migrations/` | Esquema D1: `0001` (`meta`, `merchants`, `listings`, `orders`) y `0002` (`logs`) |
 | `src/generated/abis.ts` | ABIs generadas (`pnpm abis`, desde `forge build`) |
 | `scripts/` | `gen-abis.mjs`, `seed-local.ts` (datos de demo por el flujo real), `stub-pinata.mjs`, `worker-local.sh`, `png.ts`, `deploy-worker.ts` y `deploy-lib.ts` (`pnpm worker:release`, §5.2) |
 
@@ -158,6 +180,7 @@ reorgs o eventos perdidos.
 | `GET /v1/orders?buyer=\|seller=&status=` | Pedidos con resumen. Exige `buyer` o `seller` |
 | `GET /v1/accounts/:address` | Comercio, pedidos y saldos retirables leídos de la cadena |
 | `GET /v1/stats` | Comercios, publicaciones, pedidos y volumen por token |
+| `GET /v1/logs?address=&limit=` | Logs crudos de los contratos indexados (más recientes primero, `limit` ≤ 5000, por defecto 2000). Devuelve `fromBlock`, `lastBlock`, `addresses`, `truncated` y `logs[{block,index,address,topics,data,tx}]`. 404 si el backend no indexa logs |
 | `POST /v1/media` | Imagen PNG/JPEG/WebP ≤ 2 MB; el tipo se valida por contenido (SVG rechazado) |
 | `POST /v1/metadata?kind=listing\|merchant` | Valida el esquema y devuelve `{ uri, uriHash }` para `createListing` o `applyAsMerchant` |
 
@@ -194,6 +217,7 @@ Plantilla completa en `backend/.env.example`.
 | `KEEPER_PRIVATE_KEY` | No | Clave del keeper. Paga gas: usa una cuenta dedicada |
 | `KEEPER_AUTO_RELEASE`, `KEEPER_AUTO_WITHDRAW` | No (`false`) | Activan las acciones del keeper |
 | `MAX_CHUNKS_PER_RUN`, `MAX_ENRICH_PER_RUN` | No (5, 20) | Límites por ejecución del cron (Workers) |
+| `LOGS_ADDRESSES`, `LOGS_START_BLOCK` | No (juntas) | Contratos cuyos logs se indexan para el frontend y primer bloque (§5.2). Si falta una, el Worker no arranca |
 | `PUBLIC_BASE_URL`, `DATA_DIR`, `PORT`, `HOST` | No | Sólo modo Node |
 
 En Workers, las variables no secretas están en `backend/wrangler.toml` (`[vars]`): red, direcciones de contratos,
@@ -341,18 +365,39 @@ sincronización contra la cadena. Sin `PINATA_JWT` las subidas de imágenes fall
 siguientes redespliegues.
 
 **Limitaciones conocidas:**
-- **RPC público con historial podado.** `ethereum-sepolia-rpc.publicnode.com` reparte las peticiones entre servidores y
-  varios ya no tienen los logs de hace semanas: `eth_getLogs` falla con `pruned history unavailable` en ~60 % de los
-  tramos antiguos. El primer despliegue se atascó ahí. Se resolvió comprobando, tramo a tramo con reintentos, que los
-  tres contratos no tenían más eventos que `RoleGranted` y los de configuración (`listingCount` y `orderCount` en 0), y
-  marcando el bloque 12.058.398 como indexado en la fila `meta` de D1
-  (`UPDATE meta SET value = json_set(value, '$.lastBlock', N) WHERE key = 'state'`). **Si algún día hay que reindexar
-  desde `MARKETPLACE_START_BLOCK` (por ejemplo, con una base D1 nueva), usa un RPC con historial de logs (Alchemy o
-  Infura) como secreto `RPC_URL`, o repite esa verificación antes de adelantar el bloque.** Adelantar el bloque sin
-  verificar descarta comercios y pedidos antiguos sin avisar.
+- **RPC público con historial podado.** Los RPC públicos gratuitos reparten las peticiones entre servidores y la
+  mayoría ya no tiene los logs de hace ~10.000 bloques (~1,5 días): `eth_getLogs` falla con `pruned history
+  unavailable` (código 4444) en ~75 % de los rangos que empiezan más atrás, mientras que los rangos que terminan en el
+  último bloque funcionan siempre. Por eso (1) el índice del marketplace parte de un bloque reciente y (2) el frontend
+  no lee historial de logs de un RPC público sino de `GET /v1/logs` (ver abajo). El primer despliegue del índice se
+  atascó ahí y se resolvió comprobando, tramo a tramo con reintentos, que los contratos no tenían más eventos que
+  `RoleGranted` y los de configuración (`listingCount` y `orderCount` en 0), y marcando el bloque 12.058.398 como
+  indexado en la fila `meta` de D1 (`UPDATE meta SET value = json_set(value, '$.lastBlock', N) WHERE key = 'state'`).
+  **Si hay que reindexar desde cero, usa un RPC con historial de logs (Alchemy o Infura) como secreto `RPC_URL`, o
+  repite esa verificación antes de adelantar un bloque inicial.** Adelantarlo sin verificar descarta comercios y
+  pedidos antiguos sin avisar.
 - **`/health` por instancia.** `ready` y `head` viven en la memoria de cada instancia del Worker; la que atiende
   `/health` suele no haber sincronizado y muestra `ready: false` y `head: 0` aunque el índice en D1 esté al día
   (`lastBlock` sí avanza). No lo usa el frontend.
+
+#### Índice de logs para el frontend (`/v1/logs`)
+
+El cron, además del marketplace, guarda en D1 los logs crudos de los contratos de `LOGS_ADDRESSES` desde
+`LOGS_START_BLOCK`. Son los 5 NFT de impacto: el frontend no lee logs de los contratos del marketplace, así que no se
+indexan. El frontend los lee por `GET /v1/logs`, los decodifica con sus ABIs y sólo completa el tramo reciente posterior
+a `lastBlock` leyendo la cadena (así un evento propio aparece al instante).
+Las dos partes del cron corren aisladas: si una falla la otra sigue, y el error se relanza al final para que Cloudflare
+marque la ejecución como fallida.
+
+`LOGS_START_BLOCK` (hoy 12.074.051) es un **compromiso de datos**: antes de él no hay eventos de esos contratos que le
+importen a la app. Para adelantarlo o reindexar desde cero, repite la comprobación: pide `eth_getLogs` de esos
+contratos por tramos de ~5.000 bloques **reintentando cada tramo hasta que algún servidor del RPC lo responda** (no basta
+una pasada: el 60-75 % de los intentos sobre historial viejo falla) y confirma que no aparece nada que no sea
+`RoleGranted` o configuración del despliegue. Si no se puede comprobar, usa un RPC con historial.
+
+Al cambiar `LOGS_ADDRESSES` (por ejemplo, tras redesplegar contratos) hay que fijar también un `LOGS_START_BLOCK` nuevo:
+los logs de contratos anteriores quedan en la tabla `logs` y se siguen sirviendo por dirección, pero no se indexa su
+historial.
 
 ### 5.3 Alternativa Node / Docker
 
