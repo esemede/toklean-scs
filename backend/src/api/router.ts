@@ -28,7 +28,7 @@ export interface ApiDeps {
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 
-export const MAX_LOGS_LIMIT = 5000;
+const MAX_LOGS_LIMIT = 5000;
 const logsQuery = z.object({ address: address.optional(), limit: z.coerce.number().int().min(1).max(MAX_LOGS_LIMIT).default(2000) });
 
 /** Handler Fetch-API (sirve en Node, Workers, Bun o Deno). */

@@ -5,8 +5,6 @@
  */
 import type { LogStore, LogsPage, LogsSource, RawLog, RawLogReader } from './types.ts';
 
-export type { LogStore, LogsPage, LogsSource, RawLog, RawLogReader } from './types.ts';
-
 export interface LogIndexOptions {
   reader: RawLogReader;
   store: LogStore;

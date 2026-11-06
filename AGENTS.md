@@ -10,6 +10,26 @@ despliega. El frontend tiene su propia guía en `../toklean-front/AGENTS.md`.
 
 ---
 
+## Principios de trabajo
+
+Adaptados de [karpathy-guidelines](https://github.com/multica-ai/andrej-karpathy-skills) (observaciones de Andrej Karpathy
+sobre los errores típicos de los LLM al programar). Sesgan hacia la cautela; en tareas triviales, usa el criterio.
+
+1. **Piensa antes de codificar.** Explicita tus supuestos. Si hay varias lecturas de la tarea, preséntalas en vez de
+   elegir en silencio. Si hay una solución más simple, dilo. Si algo no está claro, detente y pregunta.
+2. **Simplicidad primero.** El mínimo código que resuelve el problema. Sin funciones, abstracciones, configuración ni
+   manejo de errores para casos imposibles que nadie pidió. Si 200 líneas podrían ser 50, reescribe.
+3. **Cambios quirúrgicos.** Toca sólo lo necesario y limpia sólo tu propio desorden: elimina lo que tus cambios dejaron
+   sin uso, pero no borres código muerto ajeno (menciónalo). Cada línea cambiada debe trazar a lo que se pidió.
+4. **Ejecución guiada por criterios verificables.** Convierte la tarea en una meta comprobable ("arreglar el bug" =
+   escribir la prueba que lo reproduce y hacerla pasar). Las pruebas deben pasar antes y después; en tareas largas,
+   escribe un plan corto con su verificación por paso.
+
+Aquí el criterio de salida es `pnpm check` (backend) y `forge test` (contratos). **Los contratos desplegados son
+inmutables: no se editan sin pedirlo.** Cualquier dato que se afirme sobre la cadena se mide, no se supone.
+
+---
+
 ## 1. Mapa del sistema
 
 ```
@@ -362,14 +382,15 @@ siguientes redespliegues.
 
 #### Índice de logs para el frontend (`/v1/logs`)
 
-El cron, además del marketplace, guarda en D1 los logs crudos de los contratos de `LOGS_ADDRESSES` (los 5 NFT de impacto
-y los 3 del marketplace) desde `LOGS_START_BLOCK`. El frontend los lee por `GET /v1/logs`, los decodifica con sus ABIs y
-sólo completa el tramo reciente posterior a `lastBlock` leyendo la cadena (así un evento propio aparece al instante).
+El cron, además del marketplace, guarda en D1 los logs crudos de los contratos de `LOGS_ADDRESSES` desde
+`LOGS_START_BLOCK`. Son los 5 NFT de impacto: el frontend no lee logs de los contratos del marketplace, así que no se
+indexan. El frontend los lee por `GET /v1/logs`, los decodifica con sus ABIs y sólo completa el tramo reciente posterior
+a `lastBlock` leyendo la cadena (así un evento propio aparece al instante).
 Las dos partes del cron corren aisladas: si una falla la otra sigue, y el error se relanza al final para que Cloudflare
 marque la ejecución como fallida.
 
 `LOGS_START_BLOCK` (hoy 12.074.051) es un **compromiso de datos**: antes de él no hay eventos de esos contratos que le
-importen a la app. Para adelantarlo o reindexar desde cero, repite la comprobación: pide `eth_getLogs` de los 8
+importen a la app. Para adelantarlo o reindexar desde cero, repite la comprobación: pide `eth_getLogs` de esos
 contratos por tramos de ~5.000 bloques **reintentando cada tramo hasta que algún servidor del RPC lo responda** (no basta
 una pasada: el 60-75 % de los intentos sobre historial viejo falla) y confirma que no aparece nada que no sea
 `RoleGranted` o configuración del despliegue. Si no se puede comprobar, usa un RPC con historial.

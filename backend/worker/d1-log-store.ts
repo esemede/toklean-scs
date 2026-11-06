@@ -21,8 +21,8 @@ export class D1LogStore implements LogStore {
   }
 
   async append(logs: RawLog[], lastBlock: number): Promise<void> {
-    const insert = this.db.prepare('INSERT OR IGNORE INTO logs (block, idx, address, topic0, json) VALUES (?, ?, ?, ?, ?)');
-    const stmts = logs.map((l) => insert.bind(l.block, l.index, l.address, l.topics[0] ?? '', JSON.stringify({ topics: l.topics, data: l.data, tx: l.tx })));
+    const insert = this.db.prepare('INSERT OR IGNORE INTO logs (block, idx, address, json) VALUES (?, ?, ?, ?)');
+    const stmts = logs.map((l) => insert.bind(l.block, l.index, l.address, JSON.stringify({ topics: l.topics, data: l.data, tx: l.tx })));
     stmts.push(
       this.db
         .prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')

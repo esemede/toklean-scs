@@ -107,7 +107,7 @@ $env:RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com"; $env:PINATA_JWT = 
 | `KEEPER_PRIVATE_KEY` | No | Cuenta que paga el gas del keeper (actívalo con `KEEPER_AUTO_RELEASE`/`KEEPER_AUTO_WITHDRAW=true` en `wrangler.toml`) |
 
 Opciones: `--dry-run` compila y valida sin tocar Cloudflare ni pedir credenciales; `--keep-secrets` redespliega sin
-volver a subir los secretos; `--skip-health` omite la comprobación final.
+volver a subir los secretos.
 
 **Desde GitHub Actions:** el workflow `deploy-worker` (manual, entorno `production`) ejecuta el mismo comando con los
 secretos del repositorio `CLOUDFLARE_API_TOKEN` (permisos *Workers Scripts: Edit*, *D1: Edit*, *Account Settings:

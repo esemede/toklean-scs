@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS logs (
   block INTEGER NOT NULL,
   idx INTEGER NOT NULL,
   address TEXT NOT NULL,
-  topic0 TEXT NOT NULL,
   json TEXT NOT NULL,
   PRIMARY KEY (block, idx)
 );
