@@ -7,6 +7,8 @@ despliega. El frontend tiene su propia guía en `../toklean-front/AGENTS.md`.
 - **Rama de trabajo:** `claude/upbeat-thompson-01mwke`. Este repositorio no tiene `main` en remoto; no abras PR sin
   que el usuario indique la rama base.
 - **Idioma:** la documentación, los comentarios y los mensajes de error de dominio están en español. Mantén ese estilo.
+- **Contexto completo para retomar el proyecto** (estado de producción, infraestructura, historia, decisiones, incidentes,
+  pendientes y runbooks): [`CONTEXT.md`](CONTEXT.md). Léelo después de este archivo.
 
 ---
 
