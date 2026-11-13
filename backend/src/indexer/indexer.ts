@@ -277,7 +277,7 @@ export class Indexer {
     }
     for (const m of Object.values(this.state.merchants)) {
       if (m.profileStatus === 'pending' && m.profileURI && m.profileRetryAt <= now) {
-        jobs.push(() => this.enrich(m, m.profileURI!, m.profileHash, merchantProfileSchema, now, (p) => (p.logo && !sanitizeMedia(p.logo, this.o.policy) ? { ...p, logo: undefined } : p)));
+        jobs.push(() => this.enrich(m, m.profileURI!, m.profileHash, merchantProfileSchema, now, (p) => ({ ...p, logo: p.logo && sanitizeMedia(p.logo, this.o.policy) ? p.logo : undefined, banner: p.banner && sanitizeMedia(p.banner, this.o.policy) ? p.banner : undefined })));
       }
     }
 

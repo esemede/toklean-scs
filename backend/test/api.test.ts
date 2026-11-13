@@ -204,6 +204,12 @@ describe('detail endpoints', () => {
     const one = await body(await get(`/v1/merchants/${SELLER}`));
     expect(one).toMatchObject({ name: 'EcoTienda', completedSales: 7, listings: 5 });
     expect((await get(`/v1/merchants/${ADDR(77)}`)).status).toBe(404);
+    expect(one).toMatchObject({ tagline: null, bannerUrl: null, links: [], shippingPolicy: null, returnPolicy: null });
+    // Personalización de la tienda
+    indexer.state.merchants[SELLER.toLowerCase()]!.profile = { schema: 'toklean.merchant/1', name: 'EcoTienda', tagline: 'Hecho con residuos', banner: `ipfs://${CID}`, links: ['https://instagram.com/eco'], shippingPolicy: 'Envío en 3 días', returnPolicy: '10 días' };
+    const custom = await body(await get(`/v1/merchants/${SELLER}`));
+    expect(custom).toMatchObject({ tagline: 'Hecho con residuos', links: ['https://instagram.com/eco'], shippingPolicy: 'Envío en 3 días', returnPolicy: '10 días' });
+    expect(custom.bannerUrl).toContain(CID);
     // Cola de revisión para compliance
     const pending = await body(await get('/v1/merchants?status=pending'));
     expect(pending.items.map((m: any) => m.address)).toEqual([ADDR(9)]);
