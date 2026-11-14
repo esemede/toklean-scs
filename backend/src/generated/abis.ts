@@ -1034,6 +1034,19 @@ export const toKleanCatalogAbi = [
   },
   {
     "type": "function",
+    "name": "living",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "marketplace",
     "inputs": [],
     "outputs": [
@@ -1248,6 +1261,19 @@ export const toKleanCatalogAbi = [
   },
   {
     "type": "function",
+    "name": "setLiving",
+    "inputs": [
+      {
+        "name": "living_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setMarketplace",
     "inputs": [
       {
@@ -1420,6 +1446,19 @@ export const toKleanCatalogAbi = [
         "type": "string",
         "indexed": false,
         "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LivingSet",
+    "inputs": [
+      {
+        "name": "living",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -1657,6 +1696,11 @@ export const toKleanCatalogAbi = [
         "internalType": "uint256"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "LivingAlreadySet",
+    "inputs": []
   },
   {
     "type": "error",
@@ -4223,6 +4267,11 @@ export const circularProductNFTAbi = [
         "internalType": "contract IERC721"
       },
       {
+        "name": "energyFactors_",
+        "type": "address",
+        "internalType": "contract EnergyFactors"
+      },
+      {
         "name": "criteria_",
         "type": "tuple",
         "internalType": "struct CircularProductNFT.CleanCriteria",
@@ -4392,25 +4441,6 @@ export const circularProductNFTAbi = [
   },
   {
     "type": "function",
-    "name": "co2eGramsPerKg",
-    "inputs": [
-      {
-        "name": "tokenId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "criteria",
     "inputs": [],
     "outputs": [
@@ -4428,6 +4458,19 @@ export const circularProductNFTAbi = [
         "name": "maxCo2eGramsPerKg",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "energyFactors",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract EnergyFactors"
       }
     ],
     "stateMutability": "view"
@@ -4466,37 +4509,6 @@ export const circularProductNFTAbi = [
         "name": "",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getInputs",
-    "inputs": [
-      {
-        "name": "tokenId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "tuple[]",
-        "internalType": "struct CircularProductNFT.MaterialInput[]",
-        "components": [
-          {
-            "name": "batchId",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "grams",
-            "type": "uint96",
-            "internalType": "uint96"
-          }
-        ]
       }
     ],
     "stateMutability": "view"
@@ -4546,16 +4558,6 @@ export const circularProductNFTAbi = [
             "name": "reportHash",
             "type": "bytes32",
             "internalType": "bytes32"
-          },
-          {
-            "name": "reportURI",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "facility",
-            "type": "string",
-            "internalType": "string"
           }
         ]
       }
@@ -4604,19 +4606,9 @@ export const circularProductNFTAbi = [
             "internalType": "enum CircularProductNFT.CleanStatus"
           },
           {
-            "name": "returnedForRecycling",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
             "name": "inspiredByIdea",
             "type": "uint256",
             "internalType": "uint256"
-          },
-          {
-            "name": "name",
-            "type": "string",
-            "internalType": "string"
           }
         ]
       }
@@ -4771,22 +4763,34 @@ export const circularProductNFTAbi = [
         ]
       },
       {
-        "name": "data",
-        "type": "tuple",
-        "internalType": "struct CircularProductNFT.ManufacturingData",
+        "name": "energy",
+        "type": "tuple[]",
+        "internalType": "struct EnergyUse[]",
         "components": [
           {
-            "name": "energyWh",
+            "name": "kind",
+            "type": "uint8",
+            "internalType": "enum EnergyType"
+          },
+          {
+            "name": "wh",
             "type": "uint64",
             "internalType": "uint64"
-          },
+          }
+        ]
+      },
+      {
+        "name": "data",
+        "type": "tuple",
+        "internalType": "struct CircularProductNFT.ManufacturingInput",
+        "components": [
           {
             "name": "waterLiters",
             "type": "uint64",
             "internalType": "uint64"
           },
           {
-            "name": "co2eGrams",
+            "name": "processCo2eGrams",
             "type": "uint64",
             "internalType": "uint64"
           },
@@ -4796,22 +4800,12 @@ export const circularProductNFTAbi = [
             "internalType": "uint64"
           },
           {
-            "name": "renewableEnergyBps",
-            "type": "uint16",
-            "internalType": "uint16"
-          },
-          {
             "name": "reportHash",
             "type": "bytes32",
             "internalType": "bytes32"
           },
           {
             "name": "reportURI",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "facility",
             "type": "string",
             "internalType": "string"
           }
@@ -4831,6 +4825,25 @@ export const circularProductNFTAbi = [
       }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "manufacturerOf",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -4905,44 +4918,6 @@ export const circularProductNFTAbi = [
   },
   {
     "type": "function",
-    "name": "recycledContentBps",
-    "inputs": [
-      {
-        "name": "tokenId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "recycledGramsUsedBy",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "renounceRole",
     "inputs": [
       {
@@ -4954,42 +4929,6 @@ export const circularProductNFTAbi = [
         "name": "callerConfirmation",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "returnForRecycling",
-    "inputs": [
-      {
-        "name": "tokenId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "revokeCertification",
-    "inputs": [
-      {
-        "name": "tokenId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "evidenceHash",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "evidenceURI",
-        "type": "string",
-        "internalType": "string"
       }
     ],
     "outputs": [],
@@ -5127,22 +5066,22 @@ export const circularProductNFTAbi = [
   },
   {
     "type": "function",
-    "name": "statusName",
+    "name": "statusOf",
     "inputs": [
       {
-        "name": "s",
-        "type": "uint8",
-        "internalType": "enum CircularProductNFT.CleanStatus"
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
       {
         "name": "",
-        "type": "string",
-        "internalType": "string"
+        "type": "uint8",
+        "internalType": "enum CircularProductNFT.CleanStatus"
       }
     ],
-    "stateMutability": "pure"
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -5352,6 +5291,62 @@ export const circularProductNFTAbi = [
   },
   {
     "type": "event",
+    "name": "EnergyRecorded",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "energyWh",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "energyCo2eGrams",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "renewableEnergyBps",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "EnergyUsed",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "kind",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum EnergyType"
+      },
+      {
+        "name": "wh",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "ImageBaseURIUpdated",
     "inputs": [
       {
@@ -5359,6 +5354,31 @@ export const circularProductNFTAbi = [
         "type": "string",
         "indexed": false,
         "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MaterialUsed",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "batchId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "grams",
+        "type": "uint96",
+        "indexed": false,
+        "internalType": "uint96"
       }
     ],
     "anonymous": false
@@ -5415,25 +5435,18 @@ export const circularProductNFTAbi = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "ReturnedForRecycling",
-    "inputs": [
-      {
-        "name": "tokenId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
       },
       {
-        "name": "owner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
+        "name": "name",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "reportURI",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
       }
     ],
     "anonymous": false
@@ -5569,17 +5582,6 @@ export const circularProductNFTAbi = [
         "name": "neededRole",
         "type": "bytes32",
         "internalType": "bytes32"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "AlreadyReturned",
-    "inputs": [
-      {
-        "name": "tokenId",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ]
   },
@@ -5779,6 +5781,11 @@ export const circularProductNFTAbi = [
         "internalType": "address"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "Overflow",
+    "inputs": []
   },
   {
     "type": "error",

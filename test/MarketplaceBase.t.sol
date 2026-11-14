@@ -93,18 +93,10 @@ abstract contract MarketplaceBase is BaseTest {
         uint256 batchId = _batchAtManufacturer(10_000);
         CircularProductNFT.MaterialInput[] memory inputs = new CircularProductNFT.MaterialInput[](1);
         inputs[0] = CircularProductNFT.MaterialInput({batchId: batchId, grams: 8_000});
-        CircularProductNFT.ManufacturingData memory data = CircularProductNFT.ManufacturingData({
-            energyWh: 1_500,
-            waterLiters: 3,
-            co2eGrams: 5_000,
-            wasteGrams: 20,
-            renewableEnergyBps: 8000,
-            reportHash: keccak256("lca-report"),
-            reportURI: "ipfs://lca",
-            facility: "Planta Rancagua"
-        });
         vm.prank(manufacturer);
-        tokenId = products.manufacture(owner_, "Banca de plastico reciclado", 10_000, inputs, data, 0);
+        tokenId = products.manufacture(
+            owner_, "Banca de plastico reciclado", 10_000, inputs, _energy(8000), _input(), 0
+        );
         vm.prank(verifier);
         products.certify(tokenId, true, EV, URI);
     }

@@ -596,5 +596,6 @@ contract ToKleanMarketplaceTest is MarketplaceBase {
         assertLt(address(market).code.length, 10_000, "ToKleanMarketplace");
         assertLt(address(catalog).code.length, 10_000, "ToKleanCatalog");
         assertLt(address(registry).code.length, 10_000, "ToKleanMerchantRegistry");
+        assertLt(address(products).code.length, 10_000, "CircularProductNFT");
     }
 }

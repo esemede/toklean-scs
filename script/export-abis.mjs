@@ -9,6 +9,8 @@ const CONTRACTS = [
   'RecyclingIdeaNFT',
   'RecyclingBatchNFT',
   'CircularProductNFT',
+  'EnergyFactors',
+  'LivingProduct',
   'CleanupActionNFT',
   'ToKleanToken',
   'ToKleanStaking',

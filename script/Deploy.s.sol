@@ -7,6 +7,7 @@ import {TreeNFT} from "../src/TreeNFT.sol";
 import {RecyclingIdeaNFT} from "../src/RecyclingIdeaNFT.sol";
 import {RecyclingBatchNFT} from "../src/RecyclingBatchNFT.sol";
 import {CircularProductNFT} from "../src/CircularProductNFT.sol";
+import {EnergyFactors} from "../src/product/EnergyFactors.sol";
 import {CleanupActionNFT} from "../src/CleanupActionNFT.sol";
 import {IRecyclingBatch} from "../src/interfaces/IRecyclingBatch.sol";
 
@@ -17,6 +18,8 @@ import {IRecyclingBatch} from "../src/interfaces/IRecyclingBatch.sol";
 ///      forge script script/Deploy.s.sol --rpc-url amoy --broadcast --verify
 ///      (Sepolia: --rpc-url sepolia)
 contract Deploy is Script {
+    EnergyFactors internal energyFactors;
+
     function run()
         external
         returns (
@@ -39,11 +42,13 @@ contract Deploy is Script {
         trees = new TreeNFT(deployer, imageBase);
         ideas = new RecyclingIdeaNFT(deployer, imageBase);
         batches = new RecyclingBatchNFT(deployer, imageBase);
+        energyFactors = new EnergyFactors(deployer);
         products = new CircularProductNFT(
             deployer,
             imageBase,
             IRecyclingBatch(address(batches)),
             IERC721(address(ideas)),
+            energyFactors,
             CircularProductNFT.CleanCriteria({
                 minRecycledContentBps: 3000, // >= 30 % contenido reciclado
                 minRenewableEnergyBps: 5000, // >= 50 % energía renovable
@@ -60,6 +65,7 @@ contract Deploy is Script {
             _handOver(address(ideas), admin, deployer);
             _handOver(address(batches), admin, deployer);
             _handOver(address(products), admin, deployer);
+            _handOver(address(energyFactors), admin, deployer);
             _handOver(address(cleanups), admin, deployer);
         }
 
@@ -71,6 +77,7 @@ contract Deploy is Script {
         console2.log("RecyclingIdeaNFT   ", address(ideas));
         console2.log("RecyclingBatchNFT  ", address(batches));
         console2.log("CircularProductNFT ", address(products));
+        console2.log("EnergyFactors      ", address(energyFactors));
         console2.log("CleanupActionNFT   ", address(cleanups));
     }
 
@@ -92,6 +99,7 @@ contract Deploy is Script {
         vm.serializeAddress(k, "RecyclingIdeaNFT", address(ideas));
         vm.serializeAddress(k, "RecyclingBatchNFT", address(batches));
         vm.serializeAddress(k, "CircularProductNFT", address(products));
+        vm.serializeAddress(k, "EnergyFactors", address(energyFactors));
         string memory json = vm.serializeAddress(k, "CleanupActionNFT", address(cleanups));
         vm.writeJson(json, string.concat("deployments/", vm.toString(block.chainid), ".json"));
     }

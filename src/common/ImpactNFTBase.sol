@@ -66,7 +66,7 @@ abstract contract ImpactNFTBase is ERC721, AccessControl, Pausable {
         return _ownerOf(tokenId) != address(0);
     }
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         _requireOwned(tokenId);
         string memory json = string.concat(
             '{"name":"',

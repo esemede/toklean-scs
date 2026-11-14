@@ -143,18 +143,9 @@ contract ToKleanCatalogTest is MarketplaceBase {
         uint256 batchId = _batchAtManufacturer(10_000);
         CircularProductNFT.MaterialInput[] memory inputs = new CircularProductNFT.MaterialInput[](1);
         inputs[0] = CircularProductNFT.MaterialInput({batchId: batchId, grams: 8_000});
-        CircularProductNFT.ManufacturingData memory data = CircularProductNFT.ManufacturingData({
-            energyWh: 1,
-            waterLiters: 1,
-            co2eGrams: 5_000,
-            wasteGrams: 1,
-            renewableEnergyBps: 8000,
-            reportHash: keccak256("r"),
-            reportURI: "ipfs://r",
-            facility: "Planta"
-        });
         vm.prank(manufacturer);
-        uint256 declared = products.manufacture(seller, "Sin certificar", 10_000, inputs, data, 0);
+        uint256 declared =
+            products.manufacture(seller, "Sin certificar", 10_000, inputs, _energy(8000), _input(), 0);
         vm.startPrank(seller);
         products.approve(address(catalog), declared);
         vm.expectRevert(abi.encodeWithSelector(ToKleanCatalog.ProductNotCertified.selector, declared));
@@ -170,7 +161,7 @@ contract ToKleanCatalogTest is MarketplaceBase {
         uint256 tokenId = _certifiedProduct(seller);
         uint256 id = _listProduct(tokenId, 10 ether);
         vm.prank(verifier);
-        products.revokeCertification(tokenId, EV, URI);
+        products.certify(tokenId, false, EV, URI);
 
         assertFalse(catalog.isCleanVerified(id));
         assertFalse(catalog.isAvailable(id));

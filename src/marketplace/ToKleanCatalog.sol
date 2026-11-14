@@ -33,6 +33,9 @@ contract ToKleanCatalog is ERC721Holder, AccessControl, Pausable, ReentrancyGuar
     ToKleanMerchantRegistry public immutable registry;
     /// @notice Marketplace autorizado a reservar stock y cerrar pedidos. Se fija una sola vez.
     address public marketplace;
+    /// @notice `LivingProduct`: recibe el pasaporte de un producto vendido; el comprador lo reclama allí con el QR.
+    ///         address(0) = el pasaporte viaja directo al comprador. Se fija una sola vez.
+    address public living;
     mapping(uint256 id => bool) public acceptedPayment;
     mapping(uint256 tokenId => uint256 listingId) public listingOfProduct;
 
@@ -52,7 +55,7 @@ contract ToKleanCatalog is ERC721Holder, AccessControl, Pausable, ReentrancyGuar
         Restock, // reembolso antes del envío: el stock vuelve
         Release, // reembolso con el pedido ya enviado: el stock no vuelve
         Return, // disputa sin entrega del NFT: el producto sigue en custodia y vuelve a estar disponible
-        Deliver // venta completada: el NFT viaja al comprador
+        Deliver // venta completada: el NFT viaja al comprador (o a `living`, si está configurado)
     }
 
     struct Listing {
@@ -86,6 +89,7 @@ contract ToKleanCatalog is ERC721Holder, AccessControl, Pausable, ReentrancyGuar
     event ListingUpdated(uint256 indexed listingId, uint256 price, uint256 stock, string metadataURI);
     event ListingStatusChanged(uint256 indexed listingId, Status status);
     event MarketplaceSet(address marketplace);
+    event LivingSet(address living);
     event PaymentTokenUpdated(uint256 indexed id, bool accepted);
 
     error ZeroAddress();
@@ -96,6 +100,7 @@ contract ToKleanCatalog is ERC721Holder, AccessControl, Pausable, ReentrancyGuar
     error NotMerchant(address account);
     error NotMarketplace();
     error MarketplaceAlreadySet();
+    error LivingAlreadySet();
     error UnknownListing(uint256 listingId);
     error NotSeller(uint256 listingId);
     error ListingClosed(uint256 listingId);
@@ -248,7 +253,7 @@ contract ToKleanCatalog is ERC721Holder, AccessControl, Pausable, ReentrancyGuar
             l.stock = 0;
             delete listingOfProduct[l.productTokenId];
             emit ListingStatusChanged(listingId, Status.Closed);
-            products.transferFrom(address(this), buyer, l.productTokenId);
+            products.transferFrom(address(this), living == address(0) ? buyer : living, l.productTokenId);
         } else if (outcome == Outcome.Return && l.status != Status.Closed) {
             l.stock = 1;
         }
@@ -269,6 +274,14 @@ contract ToKleanCatalog is ERC721Holder, AccessControl, Pausable, ReentrancyGuar
         if (id < 1 || id > 3) revert InvalidPaymentToken(id);
         acceptedPayment[id] = accepted;
         emit PaymentTokenUpdated(id, accepted);
+    }
+
+    /// @notice Fija el contrato de productos vivos. Sólo una vez.
+    function setLiving(address living_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (living_ == address(0)) revert ZeroAddress();
+        if (living != address(0)) revert LivingAlreadySet();
+        living = living_;
+        emit LivingSet(living_);
     }
 
     function pause() external onlyRole(PAUSER_ROLE) {
@@ -306,21 +319,12 @@ contract ToKleanCatalog is ERC721Holder, AccessControl, Pausable, ReentrancyGuar
 
     // ================================================================== internos
 
-    /// @dev `CircularProductNFT.getProduct` devuelve un struct con un string; en vez de decodificarlo entero (código
-    ///      caro de desplegar) se lee sólo la palabra `status`, el 5º campo del struct (offset 0x20 + 4 * 0x20).
+    /// @dev Lee `statusOf` con una llamada de bajo nivel: si el NFT no existe `ok` es falso en vez de revertir.
     function _productCertified(uint256 tokenId) private view returns (bool ok, bool certified) {
-        address target = address(products);
-        bytes4 selector = CircularProductNFT.getProduct.selector;
-        uint256 status;
-        assembly ("memory-safe") {
-            let ptr := mload(0x40)
-            mstore(ptr, selector)
-            mstore(add(ptr, 4), tokenId)
-            ok := staticcall(gas(), target, ptr, 0x24, ptr, 0xc0)
-            if lt(returndatasize(), 0xc0) { ok := 0 }
-            status := mload(add(ptr, 0xa0))
-        }
-        certified = ok && status == uint256(CircularProductNFT.CleanStatus.Certified);
+        (bool success, bytes memory ret) =
+            address(products).staticcall(abi.encodeCall(CircularProductNFT.statusOf, (tokenId)));
+        ok = success && ret.length == 32;
+        certified = ok && abi.decode(ret, (uint256)) == uint256(CircularProductNFT.CleanStatus.Certified);
     }
 
     /// @dev Revierte si el NFT no existe o no está certificado.

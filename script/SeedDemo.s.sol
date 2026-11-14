@@ -5,6 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {TreeNFT} from "../src/TreeNFT.sol";
 import {RecyclingBatchNFT} from "../src/RecyclingBatchNFT.sol";
 import {CircularProductNFT} from "../src/CircularProductNFT.sol";
+import {EnergyUse, EnergyType} from "../src/product/EnergyFactors.sol";
 import {MaterialType} from "../src/common/Types.sol";
 
 /// @notice Siembra datos de demostración (árboles, lotes con custodia completa y productos limpios) para
@@ -138,18 +139,17 @@ contract SeedDemo is Script {
     ) internal returns (uint256 id) {
         CircularProductNFT.MaterialInput[] memory inputs = new CircularProductNFT.MaterialInput[](1);
         inputs[0] = CircularProductNFT.MaterialInput({batchId: batchId, grams: recycledGrams});
-        CircularProductNFT.ManufacturingData memory data = CircularProductNFT.ManufacturingData({
-            energyWh: energyWh,
-            waterLiters: 300,
-            co2eGrams: co2eGrams,
-            wasteGrams: 2_000,
-            renewableEnergyBps: renewableBps,
-            reportHash: EV,
-            reportURI: URI,
-            facility: "Planta Recicladora Sur"
+        EnergyUse[] memory energy = new EnergyUse[](2);
+        energy[0] =
+            EnergyUse({kind: EnergyType.Renewable, wh: uint64(uint256(energyWh) * renewableBps / 10_000)});
+        energy[1] = EnergyUse({
+            kind: EnergyType.Grid, wh: energyWh - uint64(uint256(energyWh) * renewableBps / 10_000)
+        });
+        CircularProductNFT.ManufacturingInput memory data = CircularProductNFT.ManufacturingInput({
+            waterLiters: 300, processCo2eGrams: co2eGrams, wasteGrams: 2_000, reportHash: EV, reportURI: URI
         });
         vm.startBroadcast(manufacturer);
-        id = products.manufacture(vm.addr(manufacturer), name, massGrams, inputs, data, 0);
+        id = products.manufacture(vm.addr(manufacturer), name, massGrams, inputs, energy, data, 0);
         vm.stopBroadcast();
     }
 }

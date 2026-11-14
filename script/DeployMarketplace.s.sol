@@ -64,6 +64,10 @@ contract DeployMarketplace is Script {
 
         // Cableado: el catálogo sólo acepta reservas del marketplace; el registro, ventas y valoraciones suyas.
         catalog.setMarketplace(address(market));
+        // Si existe el producto vivo (pasaporte v2), el catálogo le entrega los pasaportes de los productos vendidos.
+        if (vm.keyExistsJson(json, ".LivingProduct")) {
+            catalog.setLiving(vm.parseJsonAddress(json, ".LivingProduct"));
+        }
         registry.grantRole(registry.MARKETPLACE_ROLE(), address(market));
         if (canGrantMinter) token.grantRole(token.MINTER_ROLE(), address(market));
 

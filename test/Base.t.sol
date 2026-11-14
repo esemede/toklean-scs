@@ -7,6 +7,7 @@ import {TreeNFT} from "../src/TreeNFT.sol";
 import {RecyclingIdeaNFT} from "../src/RecyclingIdeaNFT.sol";
 import {RecyclingBatchNFT} from "../src/RecyclingBatchNFT.sol";
 import {CircularProductNFT} from "../src/CircularProductNFT.sol";
+import {EnergyFactors, EnergyType, EnergyUse} from "../src/product/EnergyFactors.sol";
 import {CleanupActionNFT} from "../src/CleanupActionNFT.sol";
 import {IRecyclingBatch} from "../src/interfaces/IRecyclingBatch.sol";
 import {MaterialType} from "../src/common/Types.sol";
@@ -29,6 +30,7 @@ abstract contract BaseTest is Test {
     RecyclingIdeaNFT ideas;
     RecyclingBatchNFT batches;
     CircularProductNFT products;
+    EnergyFactors energyFactors;
     CleanupActionNFT cleanups;
 
     function setUp() public virtual {
@@ -36,11 +38,13 @@ abstract contract BaseTest is Test {
         trees = new TreeNFT(admin, "ipfs://img/");
         ideas = new RecyclingIdeaNFT(admin, "ipfs://img/");
         batches = new RecyclingBatchNFT(admin, "ipfs://img/");
+        energyFactors = new EnergyFactors(admin);
         products = new CircularProductNFT(
             admin,
             "ipfs://img/",
             IRecyclingBatch(address(batches)),
             IERC721(address(ideas)),
+            energyFactors,
             CircularProductNFT.CleanCriteria({
                 minRecycledContentBps: 3000, minRenewableEnergyBps: 5000, maxCo2eGramsPerKg: 2000
             })
@@ -64,6 +68,24 @@ abstract contract BaseTest is Test {
     }
 
     /// @dev Lleva un lote de PET desde la recolección hasta el fabricante.
+    /// @dev 10 kWh de energía repartidos entre renovable y red según `renewableBps` (los Wh coinciden con los bps).
+    function _energy(uint16 renewableBps) internal pure returns (EnergyUse[] memory e) {
+        e = new EnergyUse[](2);
+        e[0] = EnergyUse({kind: EnergyType.Renewable, wh: renewableBps});
+        e[1] = EnergyUse({kind: EnergyType.Grid, wh: 10_000 - renewableBps});
+    }
+
+    /// @dev Con `_energy(8000)` (1.200 g de energía) y 3.800 g de proceso: 5.000 g CO2e en total.
+    function _input() internal pure returns (CircularProductNFT.ManufacturingInput memory) {
+        return CircularProductNFT.ManufacturingInput({
+            waterLiters: 3,
+            processCo2eGrams: 3_800,
+            wasteGrams: 20,
+            reportHash: keccak256("lca-report"),
+            reportURI: "ipfs://lca"
+        });
+    }
+
     function _batchAtManufacturer(uint96 grams) internal returns (uint256 id) {
         vm.prank(collector);
         id = batches.registerCollection(MaterialType.PET, grams, "San Fernando - Punto limpio 1", EV, URI);
