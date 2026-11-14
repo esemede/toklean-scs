@@ -6,7 +6,7 @@ import type { Indexer } from '../indexer/indexer.ts';
 import type { LogsSource } from '../logs/types.ts';
 import { CATEGORIES } from '../metadata/schema.ts';
 import type { ObjectStore } from '../metadata/object-store.ts';
-import type { UriPolicy } from '../metadata/uri.ts';
+import { resolveUri, type UriPolicy } from '../metadata/uri.ts';
 import { PAYMENT_SYMBOLS } from '../types.ts';
 import { toListingDto, toOrderDto, toSellerDto } from './dto.ts';
 import { ApiError, corsHeaders, errorResponse, json, readBody } from './http.ts';
@@ -119,7 +119,7 @@ export function createApi(deps: ApiDeps): (req: Request) => Promise<Response> {
       const m = state.merchants[addr.toLowerCase()];
       if (!m) throw new ApiError(404, 'not_found', 'Comercio inexistente');
       const listings = Object.values(state.listings).filter((l) => l.seller.toLowerCase() === addr.toLowerCase() && l.status !== 'closed');
-      return json({ ...toSellerDto(addr, m, deps.policy), description: m.profile?.description ?? null, website: m.profile?.website ?? null, since: m.since, listings: listings.length }, {}, cache);
+      return json({ ...toSellerDto(addr, m, deps.policy), description: m.profile?.description ?? null, website: m.profile?.website ?? null, tagline: m.profile?.tagline ?? null, bannerUrl: m.profile?.banner ? (resolveUri(m.profile.banner, deps.policy)?.url ?? null) : null, links: m.profile?.links ?? [], shippingPolicy: m.profile?.shippingPolicy ?? null, returnPolicy: m.profile?.returnPolicy ?? null, since: m.since, listings: listings.length }, {}, cache);
     }
 
     if (method === 'GET' && path === '/v1/orders') {

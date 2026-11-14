@@ -58,6 +58,12 @@ export const merchantProfileSchema = z.strictObject({
   logo: mediaUri.optional(),
   website: z.string().max(200).regex(/^https:\/\/[^\s]+$/).optional(),
   contact: text(1, 120).optional(),
+  /** Personalización de la tienda. */
+  tagline: text(1, 120).optional(),
+  banner: mediaUri.optional(),
+  links: z.array(z.string().max(200).regex(/^https:\/\/[^\s]+$/)).max(5).optional(),
+  shippingPolicy: text(1, 600).optional(),
+  returnPolicy: text(1, 600).optional(),
 });
 export type MerchantProfile = z.infer<typeof merchantProfileSchema>;
 
