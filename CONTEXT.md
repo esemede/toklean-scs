@@ -489,3 +489,16 @@ foto (`/v1/media`). 5. Comprar con otra cuenta y recorrer pedidos (enviar, confi
 - **Keeper:** proceso opcional que ejecuta acciones permissionless (liberar, retirar) por cuenta de otros.
 - **Pulling vs pushing:** *pull payments* = el beneficiario (o cualquiera, en su nombre) retira; el contrato no empuja fondos.
 - **RAEE / REP:** residuos de aparatos eléctricos y electrónicos / Responsabilidad Extendida del Productor (Ley 20.920, Chile).
+
+## Producto v2 y producto vivo (contratos listos, sin desplegar)
+
+- `src/CircularProductNFT.sol` v2: `manufacture(to, name, massGrams, inputs, energy[], data, idea)`; la energía se declara por tipo
+  (`EnergyType`: Renewable, Grid, Diesel, Gasoline, Wood, Other) y `EnergyFactors` calcula CO2e y % renovable. Nombre, informe, lotes y
+  energía se emiten como eventos (`ProductManufactured`, `MaterialUsed`, `EnergyUsed`); no hay `getInputs` ni `tokenURI` on-chain.
+  `certify(id, false, ...)` rechaza (Declarado) o revoca (Certificado). Pesa ~9,95 KB: en Sepolia (~1.542 gas/byte medido) despliega con
+  ~16,54 M de gas, margen 1,4 % bajo el tope de 16,78 M. Re-medir antes de desplegar (`eth_estimateGas` del initcode real).
+- `src/product/EnergyFactors.sol`: factores iniciales de memoria (30/480/850/1000/400/800 gCO2e/kWh); revisar fuentes.
+- `src/marketplace/LivingProduct.sol`: reclamo con firma de la llave del QR (incluye la cuenta que reclama); 90/10; cuota del productor bloqueada.
+- `ToKleanCatalog.setLiving` (una sola vez): al vender, el pasaporte va a `LivingProduct` y no al comprador.
+- Scripts: `DeployProductV2`, `DeployLiving`, `DeployMarketplace` (lee `.LivingProduct`); multiplicadores de gas en el `Makefile`
+  (695 / 720 / 710). Foundry no está en el entorno de Claude Code: bajar `forge` y `solc` requiere permisos explícitos.
